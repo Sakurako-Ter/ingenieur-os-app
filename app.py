@@ -32,7 +32,7 @@ def render_math(text):
 # --- 4. BARRE LATÉRALE (MENU) ---
 st.sidebar.title("🚀 Ingénieur OS")
 st.sidebar.markdown("---")
-menu = ["🔍 Recherche Documents", "🤖 Assistant IA Multi", "📝 Rapports LaTeX", "🛡️ Analyse de Fiabilité", "💳 Version Premium"]
+menu = ["🔍 Recherche Documents", "🤖 Assistant IA Multi", "📝 Rapports LaTeX", "🛡️ Analyse de Fiabilité"]
 choice = st.sidebar.radio("Navigation", menu)
 st.sidebar.markdown("---")
 st.sidebar.caption("Plateforme révolutionnaire pour le Bac 1 Ingénieur Civil.")
@@ -202,14 +202,3 @@ elif choice == "🛡️ Analyse de Fiabilité":
         else:
             st.warning("Veuillez remplir le sujet et le contenu à analyser.")
 
-
-# --- PAGE 5 : PREMIUM ---
-elif choice == "💳 Version Premium":
-    st.title("💳 Passez au Niveau Premium")
-    st.markdown("""
-    ### Débloquez la puissance totale :
-    - ✅ **Recherche illimitée** dans toutes les archives d'examens.
-    - ✅ **IA Vision & PDF sans limites** (Analyse de documents complets).
-    - ✅ **Accès aux corrigés détaillés** rédigés par des tuteurs.
-    """)
-    st.link_button("🚀 S'abonner (9,99€ / mois)", "https://www.lemonsqueezy.com")
