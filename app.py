@@ -32,7 +32,7 @@ def render_math(text):
 # --- 4. BARRE LATÉRALE (MENU) ---
 st.sidebar.title("🚀 Ingénieur OS")
 st.sidebar.markdown("---")
-menu = ["🔍 Recherche Documents", "🤖 Assistant IA Multi", "📝 Rapports LaTeX", "🛡️ Analyse de Fiabilité"]
+menu = ["🔍 Recherche Documents", "📝 Rapports LaTeX", "🛡️ Analyse de Fiabilité"]
 choice = st.sidebar.radio("Navigation", menu)
 st.sidebar.markdown("---")
 st.sidebar.caption("Plateforme révolutionnaire pour le Bac 1 Ingénieur Civil.")
