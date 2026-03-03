@@ -78,7 +78,7 @@ elif choice == "🤖 Assistant IA Multi":
     uploaded_file = st.file_uploader(
         "Importer un exercice (Photo, Schéma ou PDF)", 
         type=['png', 'jpg', 'jpeg', 'pdf'],
-        key="uploader_v2026"
+        key="uploader_vfinal"
     )
 
     if uploaded_file:
@@ -92,24 +92,24 @@ elif choice == "🤖 Assistant IA Multi":
     if prompt:
         with st.spinner("Analyse en cours..."):
             try:
-                # SCÉNARIO 1 : IMAGE (Modèle stable INSTRUCT)
+                # SCÉNARIO 1 : IMAGE (Modèle Pixtral - Stable sur Groq)
                 if uploaded_file and uploaded_file.type != "application/pdf":
                     b64 = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
                     res = client.chat.completions.create(
-                        model="llama-3.2-11b-vision-instruct", # <-- NOM STABLE 2026
+                        model="pixtral-12b-2409", # <-- CE MODÈLE EST ACTUELLEMENT DISPONIBLE
                         messages=[{"role":"user","content":[
                             {"type":"text","text": f"Question: {prompt}\nRéponds en utilisant LaTeX."},
                             {"type":"image_url","image_url":{"url":f"data:image/jpeg;base64,{b64}"}}
                         ]}]
                     )
                 
-                # SCÉNARIO 2 : PDF (Modèle puissant 70B)
+                # SCÉNARIO 2 : PDF (Llama 3.3 stable)
                 elif uploaded_file and uploaded_file.type == "application/pdf":
                     reader = PyPDF2.PdfReader(uploaded_file)
                     content = "".join([p.extract_text() for p in reader.pages[:3]])
                     res = client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
-                        messages=[{"role":"user","content":f"Contexte: {content[:4000]}\nQuestion: {prompt}. Réponds en LaTeX."}]
+                        messages=[{"role":"user","content":f"Analyse ce PDF. Texte: {content[:4000]}\n\nQuestion: {prompt}. Réponds en LaTeX."}]
                     )
                 
                 # SCÉNARIO 3 : TEXTE SEUL
@@ -122,12 +122,13 @@ elif choice == "🤖 Assistant IA Multi":
 
                 # AFFICHAGE DU RÉSULTAT
                 st.markdown("---")
-                # Vérification de l'existence de la réponse
                 if res.choices:
                     st.markdown(render_math(res.choices[0].message.content))
                 
             except Exception as e:
                 st.error(f"Erreur lors de l'analyse : {e}")
+                st.info("💡 Note : Vérifiez votre accès aux modèles sur https://console.groq.com")
+
 
 
 
