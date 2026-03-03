@@ -129,22 +129,51 @@ elif choice == "🤖 Assistant IA (Texte, Photo & PDF)":
                 except Exception as e:
                     st.error(f"Erreur : {e}")
 
-# --- PAGE 3 : AIDE RAPPORTS ---
-elif choice == "📝 Aide Rapports & Mémoires":
-    st.subheader("Générateur de Structure LaTeX")
-    st.info("Utilise ce code dans Overleaf pour tes rapports de labo ou mémoires.")
-    if st.button("Générer un Template Standard"):
-        template = """\\documentclass{article}
-\\usepackage[utf8]{inputenc}
-\\title{Rapport d'Ingénierie Civile}
-\\begin{document}
-\\maketitle
-\\section{Introduction}
-\\section{Méthodologie et Hypothèses}
-\\section{Calculs et Résultats}
-\\section{Conclusion}
-\\end{document}"""
-        st.code(template, language="latex")
+# --- PAGE 3 : RAPPORTS LATEX (CONVERSATIONNEL) ---
+elif choice == "📝 Rapports LaTeX":
+    st.title("📝 Copilote LaTeX Conversationnel")
+    st.info("Explique ton projet ci-dessous. Tu peux demander des modifications au fur et à mesure (ex: 'Ajoute une table des matières').")
+
+    # Initialisation de la mémoire de l'assistant
+    if "latex_chat_history" not in st.session_state:
+        st.session_state.latex_chat_history = []
+
+    # Affichage des échanges précédents
+    for msg in st.session_state.latex_chat_history:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
+
+    # Zone de dialogue
+    if user_input := st.chat_input("Décris ton rapport ou demande une modification..."):
+        st.session_state.latex_chat_history.append({"role": "user", "content": user_input})
+        with st.chat_message("user"):
+            st.markdown(user_input)
+
+        with st.chat_message("assistant"):
+            with st.spinner("Rédaction du code LaTeX..."):
+                try:
+                    # Envoi de l'historique complet pour garder le contexte
+                    messages = [
+                        {"role": "system", "content": "Tu es un expert LaTeX. Génère UNIQUEMENT le code complet. Pas de bla-bla inutile."}
+                    ] + st.session_state.latex_chat_history
+                    
+                    res = client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=messages
+                    )
+                    
+                    full_code = res.choices.message.content
+                    st.session_state.latex_chat_history.append({"role": "assistant", "content": full_code})
+                    
+                    st.markdown("### ✅ Ton Code LaTeX mis à jour :")
+                    st.code(full_code, language="latex")
+                    
+                    # Bouton de téléchargement dynamique
+                    st.download_button("📥 Télécharger le fichier .tex", full_code, file_name="mon_rapport.tex")
+                    
+                except Exception as e:
+                    st.error(f"Erreur : {e}")
+
 
 # --- PAGE 4 : PREMIUM ---
 elif choice == "💳 Version Premium":
