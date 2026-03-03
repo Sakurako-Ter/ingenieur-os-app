@@ -72,29 +72,32 @@ if choice == "🔍 Recherche Documents":
 
 
 # --- PAGE 2 : ASSISTANT IA (MULTI-SUPPORTS) ---
+# --- PAGE 2 : ASSISTANT IA (MULTI-SUPPORTS) ---
 elif choice == "🤖 Assistant IA Multi":
     st.title("🤖 Assistant IA Multi-supports")
     st.write("Téléchargez un fichier (Image ou PDF) et posez votre question.")
 
-    # Modèle stable que tu as confirmé
+    # Ton modèle stable confirmé
     MODÈLE_STABLE = "meta-llama/llama-4-scout-17b-16e-instruct"
 
+    # Zone de téléchargement unique (Image ou PDF)
     uploaded_file = st.file_uploader(
         "Importer un exercice (Photo, Schéma ou PDF)", 
         type=['png', 'jpg', 'jpeg', 'pdf'],
-        key="uploader_2026_final"
+        key="uploader_v2026_final"
     )
 
     if uploaded_file:
         if uploaded_file.type == "application/pdf":
             st.info(f"📄 PDF chargé : {uploaded_file.name}")
         else:
-            st.image(uploaded_file, caption="Image chargée", width=300)
+            st.image(uploaded_file, caption="Aperçu de l'image", width=250)
 
+    # Zone de saisie
     prompt = st.chat_input("Posez votre question ici...")
 
     if prompt:
-        with st.spinner(f"Analyse avec {MODÈLE_STABLE}..."):
+        with st.spinner(f"Analyse en cours avec {MODÈLE_STABLE}..."):
             try:
                 # 1. CAS IMAGE
                 if uploaded_file and uploaded_file.type != "application/pdf":
@@ -102,7 +105,7 @@ elif choice == "🤖 Assistant IA Multi":
                     res = client.chat.completions.create(
                         model=MODÈLE_STABLE, 
                         messages=[{"role":"user","content":[
-                            {"type":"text","text": f"Analyse cette image et réponds à la question suivante en LaTeX : {prompt}"},
+                            {"type":"text","text": f"Analyse cette image et réponds en LaTeX : {prompt}"},
                             {"type":"image_url","image_url":{"url":f"data:image/jpeg;base64,{b64}"}}
                         ]}]
                     )
@@ -113,23 +116,32 @@ elif choice == "🤖 Assistant IA Multi":
                     content = "".join([p.extract_text() for p in reader.pages[:3]])
                     res = client.chat.completions.create(
                         model=MODÈLE_STABLE,
-                        messages=[{"role":"user","content":f"Voici un extrait de PDF : {content[:4000]}\n\nQuestion : {prompt}. Réponds en LaTeX."}]
+                        messages=[{"role":"user","content":f"Texte du PDF : {content[:4000]}\n\nQuestion : {prompt}. Réponds en LaTeX."}]
                     )
                 
                 # 3. CAS TEXTE SEUL
                 else:
                     res = client.chat.completions.create(
                         model=MODÈLE_STABLE,
-                        messages=[{"role":"system","content":"Tu es un expert ingénieur. Réponds toujours en LaTeX."},
+                        messages=[{"role":"system","content":"Tu es un expert ingénieur. Réponds en LaTeX."},
                                   {"role":"user","content":prompt}]
                     )
 
-                # AFFICHAGE DU RÉSULTAT
+                # --- AFFICHAGE AVEC POLICE RÉDUITE ---
                 st.markdown("---")
-                st.markdown(render_math(res.choices[0].message.content))
+                st.markdown("### 🎯 Réponse :")
+                
+                # On enveloppe le résultat dans une div HTML pour réduire la taille (0.85rem = petit et pro)
+                reponse_ia = render_math(res.choices[0].message.content)
+                st.markdown(f"""
+                <div style="font-size: 0.85rem; line-height: 1.4; color: #e0e0e0;">
+                    {reponse_ia}
+                </div>
+                """, unsafe_allow_html=True)
                 
             except Exception as e:
                 st.error(f"Erreur d'analyse : {e}")
+
 
 
 
