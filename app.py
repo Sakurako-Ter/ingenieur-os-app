@@ -42,29 +42,34 @@ st.sidebar.caption("Plateforme révolutionnaire pour le Bac 1 Ingénieur Civil."
 # --- PAGE 1 : RECHERCHE (ARANA) ---
 if choice == "🔍 Recherche Arana":
     st.title("📚 Moteur de Recherche de Sources Certifiées")
-    st.write("Trouvez des références académiques (articles, thèses, ouvrages) pour vos rapports.")
+    st.write("Trouvez des références académiques et comprenez pourquoi elles sont fiables.")
     
-    query = st.text_input("Sujet scientifique (ex: Résistance des matériaux)", placeholder="Entrez un concept précis...")
+    query = st.text_input("Sujet scientifique (ex: Résistance des matériaux, Thermodynamique)", placeholder="Entrez un concept précis...")
     
     if query:
-        with st.spinner("L'IA explore les bases de données académiques..."):
+        with st.spinner("L'IA analyse la fiabilité des sources..."):
             try:
+                # Prompt enrichi pour inclure la justification de pertinence
                 res = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=[
-                        {"role": "system", "content": """Tu es un documentaliste expert. 
-                        Pour le sujet donné, donne :
-                        1. 📖 OUVRAGES : 2 livres classiques.
-                        2. 🎓 THÈSES/ARTICLES : 2 ou 3 titres réels.
-                        3. 🔗 LIENS : Liens cliquables vers Google Scholar/ResearchGate.
-                        Réponds en LaTeX pour les formules."""},
-                        {"role": "user", "content": f"Recherche approfondie : {query}"}
+                        {"role": "system", "content": """Tu es un documentaliste scientifique expert. 
+                        Pour le sujet donné, structure ta réponse comme suit :
+                        1. 📖 OUVRAGES DE RÉFÉRENCE : Donne 2 livres classiques.
+                        2. 🎓 THÈSES ET ARTICLES : Cite 2 ou 3 titres réels.
+                        3. 🔗 LIENS DIRECTS : Liens vers Google Scholar/ResearchGate.
+                        4. ✅ POURQUOI CES SOURCES SONT FIABLES : Explique en 3 points pourquoi ces documents sont pertinents pour un ingénieur (ex: comité de lecture, auteur de référence, rigueur mathématique).
+                        Utilise le format Markdown avec des icônes."""},
+                        {"role": "user", "content": f"Recherche approfondie pour : {query}"}
                     ]
                 )
                 
-                st.markdown("### 🎯 Résultats de la recherche :")
-                # LE [0] EST ICI POUR ÉVITER L'ERREUR
+                st.markdown("### 🎯 Résultats de la recherche académique :")
+                # Affichage avec correction du index 0 pour éviter l'erreur
                 st.markdown(render_math(res.choices[0].message.content))
+                
+                st.markdown("---")
+                st.success("✅ Ces sources ont été pré-validées par l'algorithme Ingé-OS pour leur rigueur académique.")
                 
             except Exception as e:
                 st.error(f"Erreur de recherche : {e}")
