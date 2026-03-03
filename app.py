@@ -1,130 +1,112 @@
 import streamlit as st
 import pandas as pd
 from groq import Groq
+import base64
 
 # 1. INITIALISATION DU CLIENT IA
-# Assure-toi d'avoir configuré GROQ_API_KEY dans Settings > Secrets sur Streamlit Cloud
 try:
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 except Exception as e:
-    st.error("⚠️ Clé API manquante ou mal configurée dans les Secrets Streamlit.")
+    st.error("⚠️ Clé API manquante dans les Secrets Streamlit.")
 
 # Configuration de la page
 st.set_page_config(page_title="Ingénieur OS", page_icon="🏗️", layout="wide")
 
-# Style CSS pour améliorer l'affichage
+# Style CSS
 st.markdown("""
     <style>
-    .main { background-color: #f5f7f9; }
-    .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #007bff; color: white; }
+    .stButton>button { width: 100%; border-radius: 5px; background-color: #007bff; color: white; }
+    .reportview-container { background: #f0f2f6; }
     </style>
     """, unsafe_allow_html=True)
 
 st.title("🏗️ Ingénieur OS : La Plateforme Révolutionnaire Bac 1")
-st.caption("L'outil tout-en-un pour les futurs ingénieurs civils (UCL, ULB, ULiège, UMons...)")
+st.caption("Le cerveau numérique pour Polytech (UCL, ULB, ULiège, UMons...)")
 
-# 2. MENU LATÉRAL (NAVIGATION)
-menu = ["🔍 Recherche Annales (Arana)", "🤖 Assistant IA Tuteur", "📝 Aide Rapports & Mémoires", "💳 Version Premium"]
+# 2. MENU LATÉRAL
+menu = ["🔍 Recherche Annales (Arana)", "🤖 Assistant IA (Texte & Photo)", "📝 Aide Rapports", "💳 Version Premium"]
 choice = st.sidebar.selectbox("Navigation", menu)
 
-# --- PAGE 1 : RECHERCHE ANNALES (STYLE ARANA) ---
+# --- FONCTION DE NETTOYAGE LATEX ---
+def clean_latex(text):
+    return text.replace("\[", "$$").replace("\]", "$$").replace("\(", "$").replace("\)", "$")
+
+# --- PAGE 1 : RECHERCHE ANNALES ---
 if choice == "🔍 Recherche Annales (Arana)":
     st.subheader("Moteur de Recherche Sémantique d'Examens")
-    
-    # Chargement des données depuis le dossier data/
     try:
         df = pd.read_csv("data/examens.csv")
-        
-        col1, col2 = st.columns([1, 2])
+        col1, col2 = st.columns(2)
         with col1:
-            univ_filter = st.multiselect("Filtrer par Université :", options=df["universite"].unique())
+            univ_filter = st.multiselect("Université :", options=df["universite"].unique())
         with col2:
-            search_query = st.text_input("Chercher un concept (ex: Moment d'inertie, Intégrales...)")
+            search_query = st.text_input("Chercher un concept (ex: Moment d'inertie)")
 
-        # Filtrage
-        temp_df = df
+        filtered_df = df
         if univ_filter:
-            temp_df = temp_df[temp_df["universite"].isin(univ_filter)]
+            filtered_df = filtered_df[filtered_df["universite"].isin(univ_filter)]
         if search_query:
-            temp_df = temp_df[temp_df["concepts"].str.contains(search_query, case=False, na=False) | 
-                              temp_df["matiere"].str.contains(search_query, case=False, na=False)]
+            filtered_df = filtered_df[filtered_df["concepts"].str.contains(search_query, case=False, na=False)]
 
-        st.write(f"### {len(temp_df)} Ressources trouvées")
-        # Affichage propre du tableau
-        st.dataframe(temp_df, use_container_width=True)
-        
-    except Exception as e:
-        st.warning("ℹ️ La base de données 'data/examens.csv' est vide ou en cours de création.")
-        st.info("Crée le fichier 'data/examens.csv' sur GitHub pour activer la recherche.")
+        st.write(f"### {len(filtered_df)} Résultats")
+        st.dataframe(filtered_df, use_container_width=True)
+    except:
+        st.info("Créez le fichier 'data/examens.csv' sur GitHub pour activer la recherche.")
 
-# --- PAGE 2 : ASSISTANT IA (AVEC NETTOYAGE LATEX) ---
-elif choice == "🤖 Assistant IA Tuteur":
-    st.subheader("Assistant IA Spécialisé Ingénierie (No-Voice)")
-    st.write("Pose une question complexe, l'IA t'expliquera la méthodologie pas à pas.")
+# --- PAGE 2 : ASSISTANT IA VISION & TEXTE ---
+elif choice == "🤖 Assistant IA (Texte & Photo)":
+    st.subheader("Assistant IA Spécialisé Ingénierie")
     
-    user_prompt = st.text_area("Énoncé du problème :", height=150, placeholder="Ex: Comment calculer la flèche d'une poutre bi-encastrée ?")
+    mode = st.radio("Méthode d'entrée :", ["Énoncé Texte", "Photo d'exercice / Schéma"])
     
-    if st.button("Analyser et Résoudre"):
-        if user_prompt:
-            with st.spinner("L'IA analyse les lois de la physique..."):
+    if mode == "Photo d'exercice / Schéma":
+        uploaded_file = st.file_uploader("Upload la photo (PNG, JPG) :", type=["jpg", "jpeg", "png"])
+        if uploaded_file:
+            st.image(uploaded_file, caption="Exercice chargé", width=300)
+            if st.button("Analyser la photo"):
+                with st.spinner("L'IA déchiffre l'exercice..."):
+                    try:
+                        base64_image = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
+                        completion = client.chat.completions.create(
+                            model="llama-3.2-11b-vision-preview",
+                            messages=[{
+                                "role": "user",
+                                "content": [
+                                    {"type": "text", "text": "Analyse cet exercice d'ingénieur. Explique la méthode de résolution étape par étape en LaTeX rigoureux."},
+                                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+                                ]
+                            }]
+                        )
+                        st.markdown("### 📘 Analyse de l'image :")
+                        st.markdown(clean_latex(completion.choices[0].message.content))
+                    except Exception as e:
+                        st.error(f"Erreur : {e}")
+
+    else:
+        user_prompt = st.text_area("Colle l'énoncé ici :", height=150)
+        if st.button("Analyser le texte"):
+            with st.spinner("Réflexion en cours..."):
                 try:
-                    # Requête à Groq avec Llama 3.3
                     chat_completion = client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
                         messages=[
-                            {"role": "system", "content": """Tu es un tuteur expert en ingénierie civile. 
-                            RÈGLES D'AFFICHAGE : 
-                            1. Utilise TOUJOURS $$ ... $$ pour les formules mathématiques isolées.
-                            2. Utilise TOUJOURS $ ... $ pour les variables dans le texte.
-                            3. Ne donne pas la réponse brute, explique les étapes logiques. 
-                            4. Réponds en français rigoureux."""},
+                            {"role": "system", "content": "Tu es un tuteur expert en ingénierie. Réponds en LaTeX ($$ pour bloc, $ pour ligne)."},
                             {"role": "user", "content": user_prompt}
-                        ],
+                        ]
                     )
-                    
-                    # Récupération et nettoyage du texte
-                    raw_text = chat_completion.choices[0].message.content
-                    clean_text = raw_text.replace("\[", "$$").replace("\]", "$$").replace("\(", "$").replace("\)", "$")
-                    
-                    st.markdown("---")
-                    st.markdown("### 📘 Méthode de résolution proposée :")
-                    st.markdown(clean_text)
-                    
+                    st.markdown("### 📘 Méthode proposée :")
+                    st.markdown(clean_latex(chat_completion.choices[0].message.content))
                 except Exception as e:
-                    st.error(f"Erreur de connexion : {e}")
-        else:
-            st.warning("Entre une question pour obtenir de l'aide.")
+                    st.error(f"Erreur : {e}")
 
 # --- PAGE 3 : AIDE RAPPORTS ---
-elif choice == "📝 Aide Rapports & Mémoires":
-    st.subheader("Générateur de Structures de Rapports")
-    type_rapport = st.selectbox("Type de document :", ["Rapport de Physique", "Projet d'Analyse", "Mémoire Technique"])
-    
-    if st.button("Générer le squelette LaTeX"):
-        st.info("Copie ce code dans Overleaf pour un rendu professionnel.")
-        template = """\\documentclass{article}
-\\usepackage[utf8]{inputenc}
-\\title{Rapport de """ + type_rapport + """}
-\\author{Étudiant Ingénieur}
-\\begin{document}
-\\maketitle
-\\tableofcontents
-\\section{Introduction}
-\\section{Méthodologie}
-\\section{Calculs et Résultats}
-\\section{Conclusion}
-\\end{document}"""
-        st.code(template, language="latex")
+elif choice == "📝 Aide Rapports":
+    st.subheader("Générateur de Squelette de Rapport (LaTeX)")
+    if st.button("Générer Template Standard"):
+        st.code("\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\\title{Rapport d'Ingénierie}\n\\begin{document}\n\\maketitle\n\\section{Introduction}\n\\section{Calculs}\n\\end{document}", language="latex")
 
-# --- PAGE 4 : PREMIUM (ABONNEMENT) ---
+# --- PAGE 4 : PREMIUM ---
 elif choice == "💳 Version Premium":
-    st.subheader("Passe au niveau supérieur")
-    st.write("""
-    **L'abonnement Premium te donne accès à :**
-    - ✅ Corrigés détaillés de TOUS les examens (UCL, ULB, etc.)
-    - ✅ IA sans limite de questions par jour
-    - ✅ Modèles de rapports complets déjà rédigés
-    """)
-    
-    # Remplacer par ton lien Lemon Squeezy plus tard
-    st.link_button("S'abonner pour 9,99€ / mois", "https://www.lemonsqueezy.com")
+    st.subheader("Accès Illimité & Corrigés")
+    st.write("Débloque les corrigés d'examens et l'IA Vision illimitée.")
+    st.link_button("S'abonner (9,99€/mois)", "https://www.lemonsqueezy.com")
