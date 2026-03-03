@@ -42,36 +42,33 @@ st.sidebar.caption("Plateforme révolutionnaire pour le Bac 1 Ingénieur Civil."
 # --- PAGE 1 : RECHERCHE (ARANA) ---
 if choice == "🔍 Recherche Arana":
     st.title("📚 Moteur de Recherche de Sources Certifiées")
-    st.write("Trouvez des références académiques (articles, thèses, ouvrages) pour vos rapports d'ingénierie.")
+    st.write("Trouvez des références académiques (articles, thèses, ouvrages) pour vos rapports.")
     
-    query = st.text_input("Sujet scientifique (ex: Résistance des matériaux, Thermodynamique chimique)", placeholder="Entrez un concept précis...")
+    query = st.text_input("Sujet scientifique (ex: Résistance des matériaux)", placeholder="Entrez un concept précis...")
     
     if query:
         with st.spinner("L'IA explore les bases de données académiques..."):
             try:
-                # Prompt ultra-précis pour obtenir des références réelles
                 res = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=[
-                        {"role": "system", "content": """Tu es un documentaliste scientifique expert en ingénierie. 
-                        Pour le sujet donné, structure ta réponse comme suit :
-                        1. 📖 OUVRAGES DE RÉFÉRENCE : Donne le nom de 2 livres ou manuels classiques sur le sujet (ex: Callister, Serway, etc.).
-                        2. 🎓 THÈSES ET ARTICLES : Cite 2 ou 3 noms d'articles ou thèses réels ou types (recherche via Google Scholar/ResearchGate).
-                        3. 🔗 LIENS DIRECTS : Fournis des liens de recherche cliquables vers ces documents.
-                        Utilise le format Markdown avec des icônes pour la lisibilité."""},
-                        {"role": "user", "content": f"Recherche approfondie pour : {query}"}
+                        {"role": "system", "content": """Tu es un documentaliste expert. 
+                        Pour le sujet donné, donne :
+                        1. 📖 OUVRAGES : 2 livres classiques.
+                        2. 🎓 THÈSES/ARTICLES : 2 ou 3 titres réels.
+                        3. 🔗 LIENS : Liens cliquables vers Google Scholar/ResearchGate.
+                        Réponds en LaTeX pour les formules."""},
+                        {"role": "user", "content": f"Recherche approfondie : {query}"}
                     ]
                 )
                 
-                # Affichage des résultats
-                st.markdown("### 🎯 Résultats de la recherche académique :")
-                st.markdown(render_math(res.choices.message.content))
-                
-                st.markdown("---")
-                st.info("💡 **Note Premium :** Les abonnés peuvent demander à l'IA de résumer entièrement l'un de ces articles PDF.")
+                st.markdown("### 🎯 Résultats de la recherche :")
+                # LE [0] EST ICI POUR ÉVITER L'ERREUR
+                st.markdown(render_math(res.choices[0].message.content))
                 
             except Exception as e:
                 st.error(f"Erreur de recherche : {e}")
+
 
 # --- PAGE 2 : ASSISTANT IA (TEXTE, PHOTO, PDF) ---
 elif choice == "🤖 Assistant IA Multi":
