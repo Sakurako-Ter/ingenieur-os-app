@@ -30,91 +30,99 @@ if "user_profile" not in st.session_state:
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
+# --- FONCTION DE VÉRIFICATION EXPERT ---
+def verify_expert(linkedin, expertise, entreprise):
+    with st.spinner("L'IA vérifie la cohérence de votre expertise..."):
+        try:
+            check = client.chat.completions.create(
+                model="llama-3.3-70b-versatile", 
+                messages=[{"role":"user","content":f"Analyse ce LinkedIn: {linkedin}. Expert en {expertise} chez {entreprise}? Réponds par OUI ou NON + courte raison."}]
+            )
+            return check.choices[0].message.content
+        except:
+            return "NON - Erreur de connexion IA"
+
 # --- 4. LOGIQUE D'ACCÈS ---
 
-# A. PAGE D'ACCUEIL VITRINE
+# A. PAGE D'ACCUEIL
 if st.session_state.user_profile is None and st.session_state.page == "home":
     st.markdown('<div class="hero-text"><h1>🏗️ INGÉNIEUR OS</h1><h3>L\'écosystème de réussite certifié pour ingénieurs.</h3></div>', unsafe_allow_html=True)
-    
     col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown('<div class="feature-card">🔍 <b>Recherche</b><p>Sources académiques certifiées</p></div>', unsafe_allow_html=True)
-    with col2:
-        st.markdown('<div class="feature-card">🤖 <b>IA Multimodale</b><p>Analyse Photo & PDF</p></div>', unsafe_allow_html=True)
-    with col3:
-        st.markdown('<div class="feature-card">📝 <b>LaTeX</b><p>Copilote de rapports pro</p></div>', unsafe_allow_html=True)
-    
+    with col1: st.markdown('<div class="feature-card">🔍 <b>Recherche</b><p>Sources certifiées</p></div>', unsafe_allow_html=True)
+    with col2: st.markdown('<div class="feature-card">🤖 <b>IA Multimodale</b><p>Analyse Photo & PDF</p></div>', unsafe_allow_html=True)
+    with col3: st.markdown('<div class="feature-card">📝 <b>LaTeX</b><p>Copilote de rapports</p></div>', unsafe_allow_html=True)
     if st.button("🚀 ACCÉDER À LA PLATEFORME"):
         st.session_state.page = "auth"
         st.rerun()
 
 # B. PAGE D'AUTHENTIFICATION
 elif st.session_state.user_profile is None and st.session_state.page == "auth":
-    st.title("🏗️ Authentification Ingénieur OS")
+    st.title("🏗️ Authentification")
     tab_login, tab_reg = st.tabs(["🔐 Connexion", "📝 Créer un compte"])
-
-    with tab_login:
-        email_log = st.text_input("Email", key="email_log")
-        pw_log = st.text_input("Mot de passe", type="password", key="pw_log")
-        if st.button("Se connecter"):
-            if email_log and pw_log:
-                st.session_state.user_profile = {"nom": "Utilisateur", "role": "Étudiant", "entite": "Université", "detail": "Général", "email": email_log}
-                st.rerun()
-            else:
-                st.error("Veuillez remplir les identifiants.")
-
-    with tab_reg:
-        with st.form("registration_form"):
-            st.subheader("Rejoindre le réseau")
-            role = st.radio("Votre profil :", ["Élève (Secondaire)", "Étudiant (Université)", "Professionnel / Expert"], horizontal=True)
-            nom_reg = st.text_input("Nom complet / Pseudo")
-            email_reg = st.text_input("Adresse Email")
-            pw_reg = st.text_input("Créer un mot de passe sécurisé", type="password")
-
-            # Initialisation des variables dynamiques
-            entite_nom = st.text_input("École / Université / Entreprise")
-            
-            # Utilisation de colonnes pour les sélections précises
-            detail_final = st.text_input("Spécialité / Option / Faculté précise")
-            
-            # LE BOUTON EST ICI, À L'INTÉRIEUR DU FORMULAIRE
-            submitted = st.form_submit_button("Créer mon compte")
-            
-            if submitted:
-                if nom_reg and email_reg and pw_reg and detail_final:
-                    st.session_state.user_profile = {"nom": nom_reg, "role": role, "entite": entite_nom, "detail": detail_final, "email": email_reg}
-                    st.success("Compte créé avec succès !")
-                    st.rerun()
-                else:
-                    st.error("Veuillez remplir tous les champs.")
     
-    if st.button("⬅️ Retour à l'accueil"):
-        st.session_state.page = "home"
-        st.rerun()
+    with tab_reg:
+        with st.form("reg_form"):
+            role = st.radio("Profil :", ["Élève", "Étudiant", "Expert"], horizontal=True)
+            nom = st.text_input("Nom / Pseudo")
+            email = st.text_input("Email")
+            pw = st.text_input("Mot de passe", type="password")
+            entite = st.text_input("École / Univ / Entreprise")
+            detail = st.text_input("Spécialité / Faculté précise")
+            link = st.text_input("Lien LinkedIn (Uniquement pour Expert)")
+            
+            if st.form_submit_button("Créer mon compte"):
+                if role == "Expert":
+                    verdict = verify_expert(link, detail, entite)
+                    if "OUI" in verdict.upper():
+                        st.session_state.user_profile = {"nom": nom, "role": role, "entite": entite, "detail": detail, "email": email, "pw": pw, "link": link}
+                        st.rerun()
+                    else: st.error(f"Validation échouée : {verdict}")
+                elif nom and email and pw:
+                    st.session_state.user_profile = {"nom": nom, "role": role, "entite": entite, "detail": detail, "email": email, "pw": pw, "link": ""}
+                    st.rerun()
+    # (Login simplifié pour le test)
+    with tab_login:
+        e_l = st.text_input("Email")
+        p_l = st.text_input("Pass", type="password")
+        if st.button("Entrer"): st.session_state.user_profile = {"nom": "Test", "role": "Étudiant", "entite": "UCL", "detail": "Polytech", "email": e_l, "pw": p_l} ; st.rerun()
 
 # C. INTERFACE PRINCIPALE
 elif st.session_state.user_profile:
     st.sidebar.title(f"🚀 {st.session_state.user_profile['nom']}")
-    st.sidebar.info(f"Profil : {st.session_state.user_profile['role']}")
-    
-    menu = ["🔍 Recherche Certifiée", "🤖 Assistant IA Multi", "📝 Rapports & BibTeX", "💎 Premium"]
+    menu = ["🔍 Recherche", "🤖 Assistant IA", "📝 Rapports", "⚙️ Mon Profil", "💎 Premium"]
     choice = st.sidebar.radio("Navigation", menu)
 
-    def render_math(text):
-        return text.replace("\[", "$$").replace("\]", "$$").replace("\(", "$").replace("\)", "$")
+    # --- PAGE CHANGEMENT DE PROFIL ---
+    if choice == "⚙️ Mon Profil":
+        st.title("⚙️ Paramètres du Profil")
+        st.info(f"Profil actuel : **{st.session_state.user_profile['role']}** chez {st.session_state.user_profile['entite']}")
+        
+        with st.form("update_profile"):
+            new_role = st.radio("Changer de statut :", ["Élève", "Étudiant", "Expert"], index=["Élève", "Étudiant", "Expert"].index(st.session_state.user_profile['role']))
+            new_entite = st.text_input("Nouvelle École / Entreprise", value=st.session_state.user_profile['entite'])
+            new_detail = st.text_input("Nouvelle Spécialité", value=st.session_state.user_profile['detail'])
+            new_link = st.text_input("Lien LinkedIn (Obligatoire si Expert)", value=st.session_state.user_profile['link'])
+            
+            if st.form_submit_button("Enregistrer les modifications"):
+                # Si le nouveau rôle est Expert, on relance la vérification IA
+                if new_role == "Expert":
+                    verdict = verify_expert(new_link, new_detail, new_entite)
+                    if "OUI" in verdict.upper():
+                        st.session_state.user_profile.update({"role": new_role, "entite": new_entite, "detail": new_detail, "link": new_link})
+                        st.success("Profil Expert certifié et mis à jour !")
+                    else:
+                        st.error(f"Échec de la certification Expert : {verdict}")
+                else:
+                    st.session_state.user_profile.update({"role": new_role, "entite": new_entite, "detail": new_detail})
+                    st.success("Profil mis à jour !")
 
-    if choice == "🔍 Recherche Certifiée":
-        st.title("📚 Moteur de Recherche Scientifique")
+    elif choice == "🔍 Recherche":
+        st.title("🔍 Sources Certifiées")
         q = st.text_input("Sujet :")
         if q:
-            res = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role":"user","content":f"Donne des sources pour {q}."}])
-            st.markdown(render_math(res.choices[0].message.content))
-
-    elif choice == "🤖 Assistant IA Multi":
-        st.title("🤖 Assistant IA Multimodal")
-        up = st.file_uploader("Upload Image ou PDF", type=['png', 'jpg', 'pdf'])
-        if up: st.info("Fichier chargé. Utilisez l'IA pour l'analyser.")
+            res = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role":"user","content":f"Sources pour {q}"}])
+            st.write(res.choices[0].message.content)
 
     elif choice == "💎 Premium":
-        st.title("💎 Mode Premium")
-        st.link_button("🚀 S'abonner (9,99€/mois)", "https://votre-boutique.lemonsqueezy.com")
+        st.title("💎 Premium")
+        st.link_button("S'abonner (9.99€)", "https://votre-boutique.lemonsqueezy.com")
