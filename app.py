@@ -14,26 +14,27 @@ try:
 except:
     st.error("⚠️ Configurez votre GROQ_API_KEY dans les Secrets Streamlit.")
 
-# --- 2. STYLE CSS (DESIGN ÉPURÉ) ---
+# --- 2. STYLE CSS (DESIGN ÉPURÉ & DARK) ---
 st.markdown("""
     <style>
     .stApp { background-color: #0e1117; color: white; }
-    .block-container { padding-top: 2rem; }
-    .stButton>button { border-radius: 8px; font-weight: bold; background-color: #2e7bc4; color: white; border: none; }
-    .hero-text { text-align: center; padding-bottom: 30px; }
+    .hero-text { text-align: center; padding: 30px 0; }
     .feature-card { background-color: #1c1f26; padding: 20px; border-radius: 12px; border: 1px solid #2e7bc4; text-align: center; margin-bottom: 20px; }
+    .stButton>button { border-radius: 8px; font-weight: bold; background-color: #2e7bc4; color: white; border: none; height: 3em; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. LOGIQUE D'ACCÈS & AUTHENTIFICATION ---
+# --- 3. GESTION DE LA SESSION ---
 if "user_profile" not in st.session_state:
     st.session_state.user_profile = None
-if "show_register" not in st.session_state:
-    st.session_state.show_register = False
+if "page" not in st.session_state:
+    st.session_state.page = "home"
 
-# --- PAGE D'ACCUEIL VITRINE ---
-if st.session_state.user_profile is None and not st.session_state.show_register:
-    st.markdown('<div class="hero-text"><h1>🏗️ INGÉNIEUR OS</h1><h3>L\'écosystème de réussite certifié pour ingénieurs.</h3></div>', unsafe_allow_html=True)
+# --- 4. LOGIQUE D'ACCÈS (LANDING -> LOGIN/REG -> APP) ---
+
+# A. PAGE D'ACCUEIL VITRINE
+if st.session_state.user_profile is None and st.session_state.page == "home":
+    st.markdown('<div class="hero-text"><h1>🏗️ INGÉNIEUR OS</h1><h3>L\'écosystème de réussite certifié pour futurs ingénieurs.</h3></div>', unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -45,43 +46,47 @@ if st.session_state.user_profile is None and not st.session_state.show_register:
     
     st.markdown("<br>", unsafe_allow_html=True)
     if st.button("🚀 ACCÉDER À LA PLATEFORME"):
-        st.session_state.show_register = True
+        st.session_state.page = "auth"
         st.rerun()
 
-# --- FORMULAIRE D'ACCÈS (CONNEXION OU CRÉATION) ---
-elif st.session_state.user_profile is None and st.session_state.show_register:
-    st.title("🏗️ Accès Ingénieur OS")
-    
-    tab_login, tab_reg = st.tabs(["🔐 Connexion", "📝 Créer mon compte"])
-    
+# B. PAGE D'AUTHENTIFICATION (LOGIN OU REGISTRE)
+elif st.session_state.user_profile is None and st.session_state.page == "auth":
+    st.title("🏗️ Authentification Ingénieur OS")
+    tab_login, tab_reg = st.tabs(["🔐 Connexion", "📝 Créer un compte"])
+
     with tab_login:
+        st.subheader("Accès à votre espace")
         email_log = st.text_input("Email", key="email_log")
         pw_log = st.text_input("Mot de passe", type="password", key="pw_log")
+        
         if st.button("Se connecter"):
-            # Simulation de succès (À lier à une DB comme Google Sheets plus tard)
+            # Simulation de vérification (À lier à Google Sheets pour une vraie persistance)
+            # Ici on accepte n'importe quel combo pour le test, mais on stocke l'email
             if email_log and pw_log:
-                st.session_state.user_profile = {"nom": "Utilisateur", "role": "Étudiant", "entite": "Université", "detail": "Général"}
+                st.session_state.user_profile = {"nom": "Utilisateur", "role": "Étudiant", "entite": "Université", "detail": "Général", "email": email_log}
                 st.success("Connexion réussie !")
                 st.rerun()
+            else:
+                st.error("Veuillez remplir les identifiants.")
 
     with tab_reg:
+        st.subheader("Rejoindre le réseau")
         role = st.radio("Votre profil :", ["Élève (Secondaire)", "Étudiant (Université)", "Professionnel / Expert"], horizontal=True)
-        nom_reg = st.text_input("Nom d'utilisateur / Pseudo")
+        nom_reg = st.text_input("Nom complet / Pseudo")
         email_reg = st.text_input("Adresse Email", key="email_reg_field")
         pw_reg = st.text_input("Créer un mot de passe sécurisé", type="password")
 
         # Initialisation des variables dynamiques
-        detail_final = ""
-        entite_nom = ""
+        detail_final, entite_nom = "", ""
 
         if role == "Élève (Secondaire)":
             entite_nom = st.text_input("Nom de votre École")
-            option = st.selectbox("Votre option :", ["Math Fortes", "Sciences", "Technique", "Autre"])
-            detail_final = st.text_input("Précisez votre option :") if option == "Autre" else option
+            option = st.selectbox("Option :", ["Math Fortes", "Sciences", "Autre"])
+            detail_final = st.text_input("Précisez l'option :") if option == "Autre" else option
         
         elif role == "Étudiant (Université)":
             entite_nom = st.text_input("Université (ex: UCL, ULB, ULiège...)")
-            fac = st.selectbox("Faculté :", ["Polytech", "Sciences", "Architecture", "Autre"])
+            fac = st.selectbox("Faculté :", ["Polytech", "Sciences", "Autre"])
             detail_final = st.text_input("Précisez votre filière :") if fac == "Autre" else fac
             
         elif role == "Professionnel / Expert":
@@ -90,23 +95,18 @@ elif st.session_state.user_profile is None and st.session_state.show_register:
             detail_final = st.text_input("Précisez votre spécialité métier :") if expertise == "Autre" else expertise
             linkedin = st.text_input("Lien LinkedIn (pour vérification IA)")
 
-        if st.button("Créer mon compte et Entrer"):
-            if nom_reg and email_reg and pw_reg and detail_final and entite_nom:
-                # Si Expert, petite vérification IA rapide
-                if role == "Professionnel / Expert" and linkedin:
-                    with st.spinner("Vérification de l'expertise..."):
-                        check = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role":"user","content":f"LinkedIn: {linkedin}. Expert {detail_final} chez {entite_nom}? Réponds par OUI ou NON."}])
-                        if "OUI" not in check.choices[0].message.content.upper():
-                            st.warning("L'IA n'a pas pu certifier votre profil immédiatement, accès restreint.")
-                
-                st.session_state.user_profile = {"nom": nom_reg, "role": role, "entite": entite_nom, "detail": detail_final}
-                st.success("Compte créé !")
+        if st.form_submit_button("Créer mon compte"):
+            if nom_reg and email_reg and pw_reg and detail_final:
+                st.session_state.user_profile = {"nom": nom_reg, "role": role, "entite": entite_nom, "detail": detail_final, "email": email_reg}
+                st.success("Compte créé avec succès !")
                 st.rerun()
-            else:
-                st.error("Veuillez remplir tous les champs du formulaire.")
+    
+    if st.button("⬅️ Retour à l'accueil"):
+        st.session_state.page = "home"
+        st.rerun()
 
-# --- 4. DASHBOARD (INTERFACE APRÈS CONNEXION) ---
-if st.session_state.user_profile:
+# C. INTERFACE PRINCIPALE (DASHBOARD)
+elif st.session_state.user_profile:
     st.sidebar.title(f"🚀 {st.session_state.user_profile['nom']}")
     st.sidebar.info(f"Profil : {st.session_state.user_profile['role']}")
     st.sidebar.caption(f"📍 {st.session_state.user_profile['entite']} ({st.session_state.user_profile['detail']})")
@@ -118,19 +118,18 @@ if st.session_state.user_profile:
     def render_math(text):
         return text.replace("\[", "$$").replace("\]", "$$").replace("\(", "$").replace("\)", "$")
 
-    # --- PAGES ---
     if choice == "🔍 Recherche Certifiée":
         st.title("📚 Moteur de Recherche Scientifique")
-        q = st.text_input(f"Sujet lié à votre spécialité ({st.session_state.user_profile['detail']}) :")
+        q = st.text_input(f"Sujet ({st.session_state.user_profile['detail']}) :")
         if q:
-            res = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role":"user","content":f"Donne 3 sources fiables niveau {st.session_state.user_profile['role']} pour {q}."}])
+            res = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role":"user","content":f"Donne 3 sources fiables pour {q}."}])
             st.markdown(render_math(res.choices[0].message.content))
 
     elif choice == "🤖 Assistant IA Multi":
         st.title("🤖 Assistant IA Multimodal")
-        up = st.file_uploader("Upload Image ou PDF (Analyse d'exercice)", type=['png', 'jpg', 'pdf'])
+        up = st.file_uploader("Upload Image ou PDF", type=['png', 'jpg', 'pdf'])
         if up and st.button("Lancer l'analyse"):
-            st.info("Traitement par Llama-3 Vision / PDF Reader...")
+            st.info("Traitement en cours...")
 
     elif choice == "📝 Rapports & BibTeX":
         st.title("📝 Copilote LaTeX Conversationnel")
@@ -142,6 +141,6 @@ if st.session_state.user_profile:
 
     elif choice == "💎 Mode Premium":
         st.title("💎 Mode Premium")
-        st.write("Accédez au mode examen, aux corrigés d'annales et à l'IA Vision illimitée.")
+        st.write("Accédez au mode examen et aux corrigés validés.")
         # Lien Lemon Squeezy réel à configurer
         st.link_button("🚀 Activer mon accès Premium (9,99€/mois)", "https://votre-boutique.lemonsqueezy.com")
