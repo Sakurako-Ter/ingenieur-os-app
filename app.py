@@ -16,7 +16,7 @@ if choice == "🔍 Recherche Annales":
 elif choice == "🤖 Assistant IA (Méthodes)":
     st.subheader("Assistant Tuteur (Zéro Bla-bla)")
     prompt = st.text_area("Colle ton énoncé ici pour obtenir la méthode de résolution :")
-        if st.button("Analyser la méthode"):
+    if st.button("Analyser la méthode"):
         if prompt:
             try:
                 completion = client.chat.completions.create(
