@@ -71,68 +71,65 @@ if choice == "🔍 Recherche Arana":
 
 
 
-# --- PAGE 2 : ASSISTANT IA (TEXTE, PHOTO, PDF) ---
+# --- PAGE 2 : ASSISTANT IA (MULTI-SUPPORTS) ---
 elif choice == "🤖 Assistant IA Multi":
     st.title("🤖 Assistant IA Multi-supports")
-    
-    # 1. Zone des deux cases horizontales
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("### 📸 Photo / Schéma")
-        img = st.file_uploader("Glissez une image ici", type=['png', 'jpg', 'jpeg'], key="upload_img", label_visibility="collapsed")
-        if img:
-            st.image(img, use_container_width=True)
+    st.write("Téléchargez un fichier (Image ou PDF) et posez votre question.")
 
-    with col2:
-        st.markdown("### 📂 Document PDF")
-        pdf = st.file_uploader("Glissez un PDF ici", type=['pdf'], key="upload_pdf", label_visibility="collapsed")
-        if pdf:
-            st.success(f"Fichier chargé : {pdf.name}")
+    # Un seul sélecteur pour tous les types de fichiers
+    uploaded_file = st.file_uploader(
+        "Importer un exercice (Photo, Schéma ou PDF)", 
+        type=['png', 'jpg', 'jpeg', 'pdf'],
+        help="Accepte les images (JPG, PNG) et les documents PDF"
+    )
 
-    st.markdown("---")
+    if uploaded_file:
+        if uploaded_file.type == "application/pdf":
+            st.info(f"📄 PDF détecté : {uploaded_file.name}")
+        else:
+            st.image(uploaded_file, caption="Image détectée", width=300)
 
-    # 2. Zone d'écriture en dessous (Chat Input style Math-GPT)
-    prompt = st.chat_input("Posez votre question ou décrivez vos fichiers...")
+    # Zone de saisie toujours présente en bas
+    prompt = st.chat_input("Posez votre question ici...")
 
     if prompt:
-        # Logique de traitement
-        with st.spinner("L'IA analyse vos données..."):
+        with st.spinner("L'IA analyse votre demande..."):
             try:
-                # CAS 1 : ANALYSE IMAGE + TEXTE
-                if img:
-                    b64 = base64.b64encode(img.getvalue()).decode('utf-8')
+                # SCÉNARIO 1 : C'EST UNE IMAGE
+                if uploaded_file and uploaded_file.type != "application/pdf":
+                    b64 = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
                     res = client.chat.completions.create(
                         model="llama-3.2-11b-vision-preview",
                         messages=[{"role":"user","content":[
-                            {"type":"text","text": f"Question: {prompt}\nAnalyse l'image et réponds en LaTeX."},
+                            {"type":"text","text": f"Question: {prompt}\nRéponds en utilisant LaTeX pour les formules."},
                             {"type":"image_url","image_url":{"url":f"data:image/jpeg;base64,{b64}"}}
                         ]}]
                     )
                 
-                # CAS 2 : ANALYSE PDF + TEXTE
-                elif pdf:
-                    reader = PyPDF2.PdfReader(pdf)
+                # SCÉNARIO 2 : C'EST UN PDF
+                elif uploaded_file and uploaded_file.type == "application/pdf":
+                    reader = PyPDF2.PdfReader(uploaded_file)
                     content = "".join([p.extract_text() for p in reader.pages[:3]])
                     res = client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
-                        messages=[{"role":"user","content":f"Contexte PDF: {content[:4000]}\nQuestion: {prompt}\nRéponds en LaTeX."}]
+                        messages=[{"role":"user","content":f"Analyse ce PDF d'ingénieur. Texte: {content[:4000]}\n\nQuestion: {prompt}. Réponds en LaTeX."}]
                     )
                 
-                # CAS 3 : TEXTE SEUL
+                # SCÉNARIO 3 : TEXTE SEUL
                 else:
                     res = client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
-                        messages=[{"role":"system","content":"Tuteur ingénieur. Réponds en LaTeX."}, 
+                        messages=[{"role":"system","content":"Tu es un tuteur ingénieur expert. Réponds toujours en LaTeX."},
                                   {"role":"user","content":prompt}]
                     )
-                
+
                 # Affichage du résultat
-                st.markdown("### 🎯 Réponse de l'Assistant :")
+                st.markdown("---")
                 st.markdown(render_math(res.choices[0].message.content))
-                
+
             except Exception as e:
-                st.error(f"Une erreur est survenue : {e}")
+                st.error(f"Erreur lors de l'analyse : {e}")
+
 
 # --- PAGE 3 : RAPPORTS LATEX (CONVERSATIONNEL) ---
 elif choice == "📝 Rapports LaTeX":
