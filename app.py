@@ -44,25 +44,32 @@ if choice == "🔍 Recherche Arana":
     st.title("📚 Moteur de Recherche de Sources Fiables")
     st.write("Trouvez des documents académiques vérifiés pour vos rapports et examens.")
     
-    query = st.text_input("Sujet de recherche (ex: Seconde loi de la thermodynamique)")
+    query = st.text_input("Sujet de recherche (ex: Seconde loi de la thermodynamique)", placeholder="Entrez un concept d'ingénierie...")
     
     if query:
-        with st.spinner("L'IA cherche les meilleures sources..."):
-            # L'IA agit ici comme un filtre intelligent
-            res = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[
-                    {"role": "system", "content": "Tu es un documentaliste scientifique. Recommande 3 types de documents fiables (Livre, Syllabus, Article) pour le sujet donné. Donne des mots-clés pour chercher sur Google Scholar."},
-                    {"role": "user", "content": query}
-                ]
-            )
-            st.markdown("### 🎯 Conseils de recherche :")
-            st.write(res.choices[0].message.content)
-            
-            # Affichage des documents de ta propre base de données
-            st.markdown("---")
-            st.subheader("📁 Documents disponibles dans la bibliothèque Ingé-OS")
-            # (Ici tu gardes ton code de filtrage du CSV que nous avons fait avant)
+        with st.spinner("L'IA analyse le sujet et cherche les meilleures sources..."):
+            try:
+                # Requête IA pour les conseils ET les liens
+                res = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[
+                        {"role": "system", "content": """Tu es un documentaliste scientifique expert. 
+                        Réponds en deux parties bien distinctes :
+                        1. 🎯 CONSEILS DE RECHERCHE : Explique comment aborder ce sujet en Bac 1.
+                        2. 🔗 LIENS RECOMMANDÉS : Fournis une liste de liens cliquables vers Google Scholar, ResearchGate et des bibliothèques universitaires (.be / .fr) pour ce sujet précis.
+                        Utilise le format Markdown pour les liens."""},
+                        {"role": "user", "content": f"Sujet : {query}"}
+                    ]
+                )
+                
+                # Affichage des conseils et des liens (avec correction du [0])
+                st.markdown(render_math(res.choices[0].message.content))
+                
+                st.markdown("---")
+                st.info("💡 **Astuce Premium :** Les abonnés reçoivent également les fichiers PDF corrigés correspondant à ces sujets.")
+                
+            except Exception as e:
+                st.error(f"Erreur de recherche : {e}")
 
 # --- PAGE 2 : ASSISTANT IA (TEXTE, PHOTO, PDF) ---
 elif choice == "🤖 Assistant IA Multi":
