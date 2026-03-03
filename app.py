@@ -3,19 +3,25 @@ from groq import Groq
 import base64
 import PyPDF2
 import io
+import uuid
 
 # --- 1. CONFIGURATION ---
 st.set_page_config(page_title="Ingénieur OS", page_icon="🏗️", layout="wide")
 
-# Initialisation de la clé API Groq
 try:
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 except Exception:
     st.error("⚠️ Erreur : Configurez votre GROQ_API_KEY dans les Secrets Streamlit.")
 
-# --- 2. INITIALISATION DE LA MÉMOIRE (SESSION STATE) ---
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+# --- 2. GESTION DES SESSIONS ET HISTORIQUE ---
+if "sessions" not in st.session_state:
+    st.session_state.sessions = {}  # Format: {id: {"title": str, "messages": list}}
+
+if "current_sid" not in st.session_state:
+    # Créer une première session vide
+    sid = str(uuid.uuid4())
+    st.session_state.sessions[sid] = {"title": "Nouvelle discussion", "messages": []}
+    st.session_state.current_sid = sid
 
 # --- 3. DESIGN & STYLE CSS ---
 st.markdown("""
@@ -28,6 +34,7 @@ st.markdown("""
         border-left: 5px solid #2e7bc4; margin-bottom: 20px; height: 180px;
     }
     .main-title { font-size: 3.5rem; font-weight: bold; color: #2e7bc4; text-align: center; }
+    .sidebar-history { margin-top: 20px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -36,137 +43,140 @@ def render_math(text):
     if not text: return ""
     return text.replace("\[", "$$").replace("\]", "$$").replace("\(", "$").replace("\)", "$")
 
-def reset_chat():
-    st.session_state.messages = []
-    st.rerun()
+def extract_pdf_text(file):
+    reader = PyPDF2.PdfReader(file)
+    return " ".join([p.extract_text() for p in reader.pages[:5]])
 
-# --- 5. BARRE LATÉRALE (NAVIGATION) ---
-st.sidebar.title("🚀 Ingénieur OS")
-st.sidebar.markdown("---")
-menu = ["🏠 Accueil", "🤖 Assistant IA Conversationnel", "🔍 Recherche Arana", "📝 Rapports LaTeX", "🛡️ Analyse de Fiabilité", "💳 Version Premium"]
-choice = st.sidebar.radio("Navigation", menu)
+# --- 5. BARRE LATÉRALE (NAVIGATION & HISTORIQUE) ---
+with st.sidebar:
+    st.title("🚀 Ingénieur OS")
+    
+    # BOUTON NOUVELLE CONVERSATION (+)
+    if st.button("➕ Nouvelle discussion", use_container_width=True):
+        new_id = str(uuid.uuid4())
+        st.session_state.sessions[new_id] = {"title": "Nouvelle discussion", "messages": []}
+        st.session_state.current_sid = new_id
+        st.rerun()
 
-st.sidebar.markdown("---")
-if st.sidebar.button("🗑️ Nouvelle Conversation"):
-    reset_chat()
+    st.markdown("### 📜 Historique")
+    # Liste des conversations avec option de suppression
+    for sid in list(st.session_state.sessions.keys()):
+        col_t, col_d = st.columns([0.8, 0.2])
+        with col_t:
+            label = st.session_state.sessions[sid]["title"][:20] + "..."
+            if st.button(label, key=f"sel_{sid}", use_container_width=True):
+                st.session_state.current_sid = sid
+                st.rerun()
+        with col_d:
+            if st.button("🗑️", key=f"del_{sid}"):
+                del st.session_state.sessions[sid]
+                if st.session_state.current_sid == sid:
+                    remaining = list(st.session_state.sessions.keys())
+                    st.session_state.current_sid = remaining[0] if remaining else None
+                st.rerun()
 
-st.sidebar.caption("Plateforme pour le Bac 1 Ingénieur Civil.")
+    st.markdown("---")
+    menu = ["🏠 Accueil", "🤖 Assistant IA Conversationnel", "🔍 Recherche Arana", "📝 Rapports LaTeX", "🛡️ Analyse de Fiabilité", "💳 Version Premium"]
+    choice = st.sidebar.radio("Navigation", menu)
 
 # --- 6. LOGIQUE DES PAGES ---
 
-# --- PAGE ACCUEIL ---
 if choice == "🏠 Accueil":
     st.markdown('<h1 class="main-title">🏗️ Ingénieur OS</h1>', unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; font-size: 1.2rem;'>L'écosystème intelligent dédié à la réussite en Polytechnique.</p>", unsafe_allow_html=True)
-    
     st.markdown("---")
     col1, col2 = st.columns(2)
-    
     with col1:
-        st.markdown('<div class="home-card"><h3>🤖 Assistant Multi-Support</h3><p>Discutez avec une IA experte qui comprend vos textes, vos photos d\'exercices et vos syllabus PDF.</p></div>', unsafe_allow_html=True)
-        st.markdown('<div class="home-card"><h3>🔍 Recherche Arana</h3><p>Accédez à des sources académiques certifiées (livres, thèses) pour vos travaux de recherche.</p></div>', unsafe_allow_html=True)
-        
+        st.markdown('<div class="home-card"><h3>🤖 Assistant Multi-Support</h3><p>Chat intelligent, analyse de photos et lecture de syllabus PDF.</p></div>', unsafe_allow_html=True)
+        st.markdown('<div class="home-card"><h3>🔍 Recherche Arana</h3><p>Accédez à des sources académiques certifiées.</p></div>', unsafe_allow_html=True)
     with col2:
-        st.markdown('<div class="home-card"><h3>📝 Rapports LaTeX</h3><p>Générez des structures de rapports scientifiques impeccables et prêtes à être compilées.</p></div>', unsafe_allow_html=True)
-        st.markdown('<div class="home-card"><h3>🛡️ Analyse de Fiabilité</h3><p>Vérifiez la rigueur scientifique de vos sources avant de les citer dans vos projets.</p></div>', unsafe_allow_html=True)
+        st.markdown('<div class="home-card"><h3>📝 Rapports LaTeX</h3><p>Structures de rapports scientifiques prêtes à compiler.</p></div>', unsafe_allow_html=True)
+        st.markdown('<div class="home-card"><h3>🛡️ Analyse de Fiabilité</h3><p>Vérifiez la rigueur de vos sources.</p></div>', unsafe_allow_html=True)
 
-    if st.button("🚀 Commencer à travailler"):
-        st.info("Sélectionnez un outil dans le menu de gauche !")
-
-# --- PAGE 1 : ASSISTANT IA CONVERSATIONNEL ---
 elif choice == "🤖 Assistant IA Conversationnel":
-    st.title("🤖 Assistant IA Multi-support")
-    
-    tab1, tab2, tab3 = st.tabs(["💬 Conversation continue", "📸 Analyse Photo", "📂 Analyse PDF"])
+    if not st.session_state.current_sid:
+        st.info("Cliquez sur ➕ pour commencer une discussion.")
+    else:
+        session = st.session_state.sessions[st.session_state.current_sid]
+        st.title(f"🤖 {session['title']}")
+        
+        tab1, tab2, tab3 = st.tabs(["💬 Chat & Fichiers", "📸 Analyse Photo", "📂 Setup PDF"])
 
-    with tab1:
-        # Affichage de l'historique
-        for message in st.session_state.messages:
-            with st.chat_message(message["role"]):
-                st.markdown(render_math(message["content"]))
+        with tab1:
+            # Affichage historique
+            for message in session["messages"]:
+                with st.chat_message(message["role"]):
+                    st.markdown(render_math(message["content"]))
 
-        # Input utilisateur
-        if prompt := st.chat_input("Posez votre question (ex: calcul de structure, physique...)"):
-            st.session_state.messages.append({"role": "user", "content": prompt})
-            with st.chat_message("user"):
-                st.markdown(prompt)
+            # Chat Input + Fichier
+            with st.container():
+                up_file = st.file_uploader("Joindre un document à ma question (Optionnel)", type=['pdf', 'txt'], key="chat_file")
+                if prompt := st.chat_input("Posez votre question..."):
+                    
+                    # Contexte fichier si présent
+                    context = ""
+                    if up_file:
+                        with st.spinner("Lecture du fichier..."):
+                            if up_file.type == "application/pdf":
+                                context = f"\n[DOCUMENT]: {extract_pdf_text(up_file)}\n\n"
+                            else:
+                                context = f"\n[DOCUMENT]: {up_file.read().decode()}\n\n"
+                    
+                    full_prompt = context + prompt
+                    
+                    # Update titre auto
+                    if not session["messages"]:
+                        session["title"] = prompt[:30]
 
-            with st.chat_message("assistant"):
-                try:
-                    res = client.chat.completions.create(
-                        model="llama-3.3-70b-versatile",
-                        messages=[{"role": "system", "content": "Tu es un tuteur expert en ingénierie. Réponds en utilisant LaTeX pour toutes les formules mathématiques."}] + st.session_state.messages
-                    )
-                    full_res = res.choices[0].message.content
-                    st.markdown(render_math(full_res))
-                    st.session_state.messages.append({"role": "assistant", "content": full_res})
-                except Exception as e:
-                    st.error(f"Erreur API : {e}")
+                    session["messages"].append({"role": "user", "content": full_prompt})
+                    with st.chat_message("user"):
+                        st.markdown(prompt)
 
-    with tab2:
-        img = st.file_uploader("Télécharger une photo de l'exercice :", type=['png', 'jpg', 'jpeg'])
-        if img and st.button("Analyser l'image"):
-            with st.spinner("Analyse visuelle en cours..."):
+                    with st.chat_message("assistant"):
+                        res = client.chat.completions.create(
+                            model="llama-3.3-70b-versatile",
+                            messages=[{"role": "system", "content": "Expert ingénieur. Utilise LaTeX."}] + session["messages"]
+                        )
+                        ans = res.choices[0].message.content
+                        st.markdown(render_math(ans))
+                        session["messages"].append({"role": "assistant", "content": ans})
+
+        with tab2:
+            img = st.file_uploader("Photo de l'exercice :", type=['png', 'jpg', 'jpeg'])
+            if img and st.button("Analyser l'image"):
                 b64 = base64.b64encode(img.getvalue()).decode('utf-8')
                 res = client.chat.completions.create(
                     model="llama-3.2-11b-vision-preview",
-                    messages=[{"role":"user","content":[
-                        {"type":"text","text":"Analyse cet exercice et donne la solution détaillée en LaTeX."},
-                        {"type":"image_url","image_url":{"url":f"data:image/jpeg;base64,{b64}"}}
-                    ]}]
+                    messages=[{"role":"user","content":[{"type":"text","text":"Explique cet exercice en LaTeX."},{"type":"image_url","image_url":{"url":f"data:image/jpeg;base64,{b64}"}}]}]
                 )
                 analysis = res.choices[0].message.content
-                st.session_state.messages.append({"role": "assistant", "content": f"[Analyse Image] : {analysis}"})
+                session["messages"].append({"role": "assistant", "content": f"[Analyse Photo] : {analysis}"})
                 st.markdown(render_math(analysis))
-                st.info("L'analyse a été ajoutée à la conversation continue.")
 
-    with tab3:
-        pdf = st.file_uploader("Charger un syllabus (PDF) :", type=['pdf'])
-        if pdf and st.button("Extraire les concepts clés"):
-            reader = PyPDF2.PdfReader(pdf)
-            text_content = "".join([p.extract_text() for p in reader.pages[:3]])
-            context_prompt = f"Voici un extrait de mon cours. Peux-tu le résumer et te préparer à répondre à mes questions dessus ?\n\nContenu : {text_content[:3000]}"
-            st.session_state.messages.append({"role": "user", "content": context_prompt})
-            st.success("Syllabus analysé ! Vous pouvez maintenant poser vos questions dans l'onglet 'Conversation'.")
+        with tab3:
+            st.info("Le chargement de PDF est désormais intégré directement dans l'onglet 'Chat & Fichiers' pour plus de fluidité.")
 
-# --- PAGE 2 : RECHERCHE ARANA ---
 elif choice == "🔍 Recherche Arana":
-    st.title("📚 Recherche de Sources Certifiées")
-    query = st.text_input("Sujet scientifique :", placeholder="ex: Mécanique des fluides")
+    st.title("📚 Recherche Arana")
+    query = st.text_input("Sujet :")
     if query:
-        res = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "system", "content": "Documentaliste expert. Donne 2 livres et 2 articles réels avec liens Scholar."},
-                      {"role": "user", "content": f"Recherche : {query}"}]
-        )
+        res = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": f"Sources pour {query}"}])
         st.markdown(render_math(res.choices[0].message.content))
 
-# --- PAGE 3 : RAPPORTS LATEX ---
 elif choice == "📝 Rapports LaTeX":
-    st.title("📝 Générateur de Code LaTeX")
-    user_req = st.text_area("Décris ton rapport (ex: TP de Physique sur le pendule) :")
-    if st.button("Générer le template"):
-        res = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "system", "content": "Expert LaTeX. Donne uniquement le code complet."},
-                      {"role": "user", "content": user_req}]
-        )
+    st.title("📝 Générateur LaTeX")
+    req = st.text_area("Description :")
+    if st.button("Générer"):
+        res = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": f"Code LaTeX complet pour : {req}"}])
         st.code(res.choices[0].message.content, language="latex")
 
-# --- PAGE 4 : ANALYSE DE FIABILITÉ ---
 elif choice == "🛡️ Analyse de Fiabilité":
-    st.title("🛡️ Audit de Fiabilité Scientifique")
-    source_text = st.text_area("Collez l'extrait ou la source à vérifier :")
-    if st.button("Lancer l'audit"):
-        res = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=[{"role": "system", "content": "Expert en intégrité scientifique. Note la source sur 10."},
-                      {"role": "user", "content": source_text}]
-        )
+    st.title("🛡️ Audit")
+    src = st.text_area("Texte :")
+    if st.button("Vérifier"):
+        res = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": f"Analyse la fiabilité : {src}"}])
         st.write(res.choices[0].message.content)
 
-# --- PAGE 5 : PREMIUM ---
 elif choice == "💳 Version Premium":
-    st.title("💳 Passez au niveau supérieur")
-    st.success("Accès illimité aux modèles Llama 3 Vision et export PDF direct.")
-    st.button("S'abonner (Prochainement)")
+    st.title("💳 Premium")
+    st.write("Bientôt disponible.")
