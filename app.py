@@ -72,12 +72,15 @@ if choice == "🔍 Recherche Documents":
 
 
 # --- PAGE 2 : ASSISTANT IA (MULTI-SUPPORTS) ---
+# --- PAGE 2 : ASSISTANT IA (MULTI-SUPPORTS) ---
 elif choice == "🤖 Assistant IA Multi":
     st.title("🤖 Assistant IA Multi-supports")
-    
+    st.write("Téléchargez un fichier (Image ou PDF) et posez votre question.")
+
     uploaded_file = st.file_uploader(
         "Importer un exercice (Photo, Schéma ou PDF)", 
-        type=['png', 'jpg', 'jpeg', 'pdf']
+        type=['png', 'jpg', 'jpeg', 'pdf'],
+        key="uploader_unique"
     )
 
     if uploaded_file:
@@ -89,43 +92,45 @@ elif choice == "🤖 Assistant IA Multi":
     prompt = st.chat_input("Posez votre question ici...")
 
     if prompt:
-        with st.spinner("Analyse en cours..."):
+        with st.spinner("L'IA analyse votre demande..."):
             try:
-                # SCÉNARIO 1 : IMAGE
+                # SCÉNARIO 1 : IMAGE (Llama 3.2 Vision)
                 if uploaded_file and uploaded_file.type != "application/pdf":
                     b64 = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
+                    # UTILISATION DU MODÈLE VISION STABLE
                     res = client.chat.completions.create(
-                        model="llama-3.2-11b-vision-preview", # <-- Modèle Vision Actif
+                        model="llama-3.2-11b-vision-preview", 
                         messages=[{"role":"user","content":[
-                            {"type":"text","text": f"Question: {prompt}\nRéponds en utilisant LaTeX."},
+                            {"type":"text","text": f"{prompt}\nRéponds en LaTeX."},
                             {"type":"image_url","image_url":{"url":f"data:image/jpeg;base64,{b64}"}}
                         ]}]
                     )
                 
-                # SCÉNARIO 2 : PDF
+                # SCÉNARIO 2 : PDF (Llama 3.3 Text)
                 elif uploaded_file and uploaded_file.type == "application/pdf":
                     reader = PyPDF2.PdfReader(uploaded_file)
                     content = "".join([p.extract_text() for p in reader.pages[:3]])
                     res = client.chat.completions.create(
-                        model="llama-3.3-70b-versatile", # <-- Modèle Texte Actif
-                        messages=[{"role":"user","content":f"Analyse ce PDF. Texte: {content[:4000]}\n\nQuestion: {prompt}. Réponds en LaTeX."}]
+                        model="llama-3.3-70b-versatile",
+                        messages=[{"role":"user","content":f"Contexte: {content[:4000]}\nQuestion: {prompt}. Réponds en LaTeX."}]
                     )
                 
                 # SCÉNARIO 3 : TEXTE SEUL
                 else:
                     res = client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
-                        messages=[{"role":"system","content":"Tu es un tuteur ingénieur expert. Réponds en LaTeX."},
+                        messages=[{"role":"system","content":"Tu es un expert ingénieur. Réponds en LaTeX."},
                                   {"role":"user","content":prompt}]
                     )
 
-                # Affichage du résultat
+                # AFFICHAGE DU RÉSULTAT
                 st.markdown("---")
-                # IMPORTANT : res.choices[0].message.content (ne pas oublier le [0])
+                # Utilisation de .choices[0] pour être sûr de l'index
                 st.markdown(render_math(res.choices[0].message.content))
 
             except Exception as e:
                 st.error(f"Erreur lors de l'analyse : {e}")
+                st.warning("Si l'erreur persiste, vérifiez le nom du modèle sur console.groq.com")
 
 
 
