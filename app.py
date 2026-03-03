@@ -106,28 +106,35 @@ elif choice == "🤖 Assistant IA Multi":
 # --- PAGE 3 : RAPPORTS LATEX (CONVERSATIONNEL) ---
 elif choice == "📝 Rapports LaTeX":
     st.title("📝 Copilote LaTeX Conversationnel")
-    st.info("Expliquez votre projet (ex: 'Fais-moi un rapport de labo'). Vous pourrez ensuite demander des modifications.")
+    st.info("Explique ton projet (ex: 'Fais-moi un rapport de physique').")
 
+    # Initialisation de la mémoire dans la session
     if "latex_chat" not in st.session_state:
         st.session_state.latex_chat = []
 
+    # Affichage des messages
     for msg in st.session_state.latex_chat:
         with st.chat_message(msg["role"]):
-            st.markdown(msg["content"]) if msg["role"] == "user" else st.code(msg["content"], language="latex")
+            st.markdown(msg["content"])
 
-    if user_input := st.chat_input("Décrivez votre rapport ou une modification..."):
+    # Zone de saisie
+    if user_input := st.chat_input("Décris ton rapport ici..."):
         st.session_state.latex_chat.append({"role": "user", "content": user_input})
         with st.chat_message("user"):
             st.markdown(user_input)
 
         with st.chat_message("assistant"):
-            with st.spinner("Rédaction du code..."):
-                messages = [{"role": "system", "content": "Tu es un expert LaTeX. Donne UNIQUEMENT le code complet, sans texte autour."}] + st.session_state.latex_chat
+            try:
+                # Appel IA
+                messages = [{"role": "system", "content": "Expert LaTeX. Donne le code complet."}] + st.session_state.latex_chat
                 res = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=messages)
-                full_code = res.choices[0].message.content
+                full_code = res.choices.message.content
+                
                 st.code(full_code, language="latex")
                 st.session_state.latex_chat.append({"role": "assistant", "content": full_code})
-                st.download_button("📥 Télécharger le .tex", full_code, file_name="rapport_ingenieur.tex")
+            except Exception as e:
+                st.error(f"Erreur : {e}")
+
 
 # --- PAGE 4 : PREMIUM ---
 elif choice == "💳 Version Premium":
