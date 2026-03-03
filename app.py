@@ -40,60 +40,34 @@ st.sidebar.caption("Plateforme révolutionnaire pour le Bac 1 Ingénieur Civil."
 # --- 5. LOGIQUE DES PAGES ---
 
 # --- PAGE 1 : RECHERCHE (ARANA) ---
-if choice == "🔍 Recherche Arana":
+if choice == "🔍 Recherche Documents":
     st.title("📚 Moteur de Recherche de Sources Certifiées")
-    st.write("Trouvez des références semblables à votre document ou à un sujet précis.")
+    st.write("Trouvez des références académiques (articles, thèses, ouvrages) pour vos rapports.")
     
-    # Zone mixte : Texte OU Fichier
-    col_input, col_file = st.columns([2, 1])
+    query = st.text_input("Sujet scientifique (ex: Résistance des matériaux)", placeholder="Entrez un concept précis...")
     
-    with col_input:
-        query = st.text_input("Sujet scientifique :", placeholder="Ex: Résistance des matériaux...")
-    
-    with col_file:
-        ref_file = st.file_uploader("Document source (PDF/Image)", type=['pdf', 'png', 'jpg', 'jpeg'])
-
-    if st.button("Lancer la recherche de sources semblables"):
-        extracted_context = ""
-        
-        with st.spinner("Analyse de votre document pour trouver des sources similaires..."):
-            # 1. Extraction du contexte si un fichier est fourni
-            if ref_file:
-                if ref_file.type == "application/pdf":
-                    reader = PyPDF2.PdfReader(ref_file)
-                    extracted_context = "".join([p.extract_text() for p in reader.pages[:2]])
-                else:
-                    b64 = base64.b64encode(ref_file.getvalue()).decode('utf-8')
-                    res_vision = client.chat.completions.create(
-                        model="llama-3.2-11b-vision-preview",
-                        messages=[{"role":"user","content":[
-                            {"type":"text","text":"Extrais les concepts clés et le sujet scientifique de cette image pour une recherche bibliographique."},
-                            {"type":"image_url","image_url":{"url":f"data:image/jpeg;base64,{b64}"}}
-                        ]}]
-                    )
-                    extracted_context = res_vision.choices[0].message.content
-
-            # 2. Appel IA pour trouver des sources
-            final_query = query if query else "ce document"
+    if query:
+        with st.spinner("L'IA explore les bases de données académiques..."):
             try:
                 res = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=[
-                        {"role": "system", "content": """Tu es un documentaliste expert en ingénierie.
-                        Basé sur le texte ou l'image fournis, identifie des sources académiques réelles (Livres, Thèses, Articles).
-                        Donne : 
-                        1. 📖 2 Ouvrages de référence.
-                        2. 🎓 3 Articles scientifiques réels.
-                        3. 🔗 Liens directs vers Google Scholar."""},
-                        {"role": "user", "content": f"Trouve des sources semblables à : {final_query}. Contexte extrait : {extracted_context[:2000]}"}
+                        {"role": "system", "content": """Tu es un documentaliste expert. 
+                        Pour le sujet donné, donne :
+                        1. 📖 OUVRAGES : 2 livres classiques.
+                        2. 🎓 THÈSES/ARTICLES : 2 ou 3 titres réels.
+                        3. 🔗 LIENS : Liens cliquables vers Google Scholar/ResearchGate.
+                        Réponds en LaTeX pour les formules."""},
+                        {"role": "user", "content": f"Recherche approfondie : {query}"}
                     ]
                 )
                 
-                st.markdown("### 🎯 Sources académiques recommandées :")
+                st.markdown("### 🎯 Résultats de la recherche :")
+                # LE [0] EST ICI POUR ÉVITER L'ERREUR
                 st.markdown(render_math(res.choices[0].message.content))
                 
             except Exception as e:
-                st.error(f"Erreur : {e}")
+                st.error(f"Erreur de recherche : {e}")
 
 
 
