@@ -3,3 +3,4 @@ groq
 pandas
 Pillow
 PyPDF2
+streamlit-extras
