@@ -32,7 +32,7 @@ def render_math(text):
 # --- 4. BARRE LATÉRALE (MENU) ---
 st.sidebar.title("🚀 Ingénieur OS")
 st.sidebar.markdown("---")
-menu = ["🔍 Recherche Arana", "🤖 Assistant IA Multi", "📝 Rapports LaTeX", "💳 Version Premium"]
+menu = ["🔍 Recherche Arana", "🤖 Assistant IA Multi", "📝 Rapports LaTeX", "🛡️ Analyse de Fiabilité", "💳 Version Premium"]
 choice = st.sidebar.radio("Navigation", menu)
 st.sidebar.markdown("---")
 st.sidebar.caption("Plateforme révolutionnaire pour le Bac 1 Ingénieur Civil.")
@@ -146,8 +146,47 @@ elif choice == "📝 Rapports LaTeX":
             except Exception as e:
                 st.error(f"Erreur : {e}")
 
+# --- PAGE 4 : ANALYSE DE FIABILITÉ ---
+elif choice == "🛡️ Analyse de Fiabilité":
+    st.title("🛡️ Analyseur de Fiabilité Scientifique")
+    st.write("Vérifiez si un document ou une source est digne d'être cité dans un rapport d'ingénieur.")
 
-# --- PAGE 4 : PREMIUM ---
+    col1, col2 = st.columns(2)
+    with col1:
+        sujet_recherche = st.text_input("Sujet de votre travail :", placeholder="Ex: Étude de la fatigue de l'acier")
+    with col2:
+        type_doc = st.selectbox("Type de source :", ["Article Web", "Livre/Syllabus", "Vidéo/Blog", "Publication Scientifique"])
+
+    doc_content = st.text_area("Collez ici un extrait du texte ou le nom/auteur de la source :", height=200)
+
+    if st.button("Lancer l'audit de fiabilité"):
+        if sujet_recherche and doc_content:
+            with st.spinner("Analyse des critères de scientificité..."):
+                try:
+                    res = client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[
+                            {"role": "system", "content": """Tu es un expert en intégrité académique. 
+                            Analyse la source fournie selon ces 4 critères :
+                            1. AUTORITÉ : Qui est l'auteur/éditeur ? Est-il reconnu ?
+                            2. RIGUEUR : Le langage est-il scientifique ? Y a-t-il des preuves/calculs ?
+                            3. PERTINENCE : Est-ce adapté au sujet de recherche de l'étudiant ?
+                            4. VERDICT : Note sur 10 et recommandation (Citer / Ne pas citer).
+                            Réponds de manière concise et critique."""},
+                            {"role": "user", "content": f"Sujet: {sujet_recherche}\nType: {type_doc}\nContenu à analyser: {doc_content}"}
+                        ]
+                    )
+                    st.markdown("### 📊 Rapport d'Audit de la Source")
+                    st.markdown(res.choices[0].message.content)
+                    
+                    st.success("💡 Conseil : Un score inférieur à 6/10 ne devrait pas figurer dans votre bibliographie officielle.")
+                except Exception as e:
+                    st.error(f"Erreur d'analyse : {e}")
+        else:
+            st.warning("Veuillez remplir le sujet et le contenu à analyser.")
+
+
+# --- PAGE 5 : PREMIUM ---
 elif choice == "💳 Version Premium":
     st.title("💳 Passez au Niveau Premium")
     st.markdown("""
