@@ -147,44 +147,54 @@ elif choice == "📝 Rapports LaTeX":
                 st.error(f"Erreur : {e}")
 
 # --- PAGE 4 : ANALYSE DE FIABILITÉ ---
+# --- PAGE 4 : ANALYSE DE FIABILITÉ (MULTI-SUPPORTS) ---
 elif choice == "🛡️ Analyse de Fiabilité":
     st.title("🛡️ Analyseur de Fiabilité Scientifique")
-    st.write("Vérifiez si un document ou une source est digne d'être cité dans un rapport d'ingénieur.")
+    st.write("Vérifiez la crédibilité d'un PDF, d'un lien web ou d'une vidéo technique.")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        sujet_recherche = st.text_input("Sujet de votre travail :", placeholder="Ex: Étude de la fatigue de l'acier")
-    with col2:
-        type_doc = st.selectbox("Type de source :", ["Article Web", "Livre/Syllabus", "Vidéo/Blog", "Publication Scientifique"])
+    # Choix du support
+    support = st.radio("Support à analyser :", ["Lien (Web / YouTube)", "Document PDF", "Extrait de texte"])
+    sujet_travail = st.text_input("Sujet de votre recherche :", placeholder="Ex: Calcul des structures en béton armé")
 
-    doc_content = st.text_area("Collez ici un extrait du texte ou le nom/auteur de la source :", height=200)
+    source_data = "" # Variable pour stocker le contenu à analyser
+
+    if support == "Lien (Web / YouTube)":
+        url = st.text_input("Collez l'URL ici :", placeholder="https://youtube.com... ou https://article-scientifique.com...")
+        source_data = f"Analyser le contenu et la crédibilité de cet URL : {url}"
+    
+    elif support == "Document PDF":
+        uploaded_pdf = st.file_uploader("Upload le PDF à auditer :", type=["pdf"])
+        if uploaded_pdf:
+            reader = PyPDF2.PdfReader(uploaded_pdf)
+            source_data = "".join([p.extract_text() for p in reader.pages[:3]]) # Analyse des 3 premières pages
+
+    elif support == "Extrait de texte":
+        source_data = st.text_area("Collez un extrait ou le nom de l'auteur/ouvrage :", height=150)
 
     if st.button("Lancer l'audit de fiabilité"):
-        if sujet_recherche and doc_content:
-            with st.spinner("Analyse des critères de scientificité..."):
+        if sujet_travail and source_data:
+            with st.spinner("Expertise scientifique en cours..."):
                 try:
+                    # L'IA agit comme un examinateur académique
                     res = client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
                         messages=[
-                            {"role": "system", "content": """Tu es un expert en intégrité académique. 
-                            Analyse la source fournie selon ces 4 critères :
-                            1. AUTORITÉ : Qui est l'auteur/éditeur ? Est-il reconnu ?
-                            2. RIGUEUR : Le langage est-il scientifique ? Y a-t-il des preuves/calculs ?
-                            3. PERTINENCE : Est-ce adapté au sujet de recherche de l'étudiant ?
-                            4. VERDICT : Note sur 10 et recommandation (Citer / Ne pas citer).
-                            Réponds de manière concise et critique."""},
-                            {"role": "user", "content": f"Sujet: {sujet_recherche}\nType: {type_doc}\nContenu à analyser: {doc_content}"}
+                            {"role": "system", "content": """Tu es un expert en intégrité académique pour ingénieurs. 
+                            Ton rôle est d'analyser la source fournie et de rendre un verdict sur sa fiabilité pour un travail de Bac 1.
+                            Structure ta réponse :
+                            1. 🔍 ANALYSE DE LA SOURCE (Auteur, institution, date, type).
+                            2. ⚙️ RIGUEUR SCIENTIFIQUE (Méthodologie, présence de calculs/preuves).
+                            3. ⚠️ POINTS DE VIGILANCE (Biais potentiels, vulgarisation excessive).
+                            4. ⚖️ VERDICT FINAL : Note sur 10 et 'Recommandé' ou 'À éviter'."""},
+                            {"role": "user", "content": f"Sujet de l'étudiant: {sujet_travail}\nSource: {source_data}"}
                         ]
                     )
-                    st.markdown("### 📊 Rapport d'Audit de la Source")
+                    st.markdown("### 📊 Rapport d'Audit de Fiabilité")
                     st.markdown(res.choices[0].message.content)
-                    
-                    st.success("💡 Conseil : Un score inférieur à 6/10 ne devrait pas figurer dans votre bibliographie officielle.")
                 except Exception as e:
                     st.error(f"Erreur d'analyse : {e}")
         else:
-            st.warning("Veuillez remplir le sujet et le contenu à analyser.")
-
+            st.warning("Veuillez remplir le sujet et fournir une source.")
 
 # --- PAGE 5 : PREMIUM ---
 elif choice == "💳 Version Premium":
