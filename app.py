@@ -29,14 +29,15 @@ elif choice == "🤖 Assistant IA (Méthodes)":
     if st.button("Analyser la méthode"):
         if prompt:
             try:
-                # Utilisation du modèle Llama3 via Groq
+                # Utilisation du modèle Llama 3.3 (Le plus récent et performant)
                 completion = client.chat.completions.create(
-                    model="llama3-8b-8192",
+                    model="llama-3.3-70b-versatile",
                     messages=[
-                        {"role": "system", "content": "Tu es un tuteur pour ingénieurs. Réponds en LaTeX, sois très rigoureux, ne donne pas la solution finale tout de suite, explique les étapes."},
+                        {"role": "system", "content": "Tu es un tuteur pour ingénieurs. Réponds en LaTeX, sois très rigoureux, explique les étapes."},
                         {"role": "user", "content": prompt}
                     ],
                 )
+
                 st.markdown("### 📘 Méthode de résolution :")
                 st.write(completion.choices.message.content)
             except Exception as e:
