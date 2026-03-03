@@ -29,7 +29,7 @@ elif choice == "🤖 Assistant IA (Méthodes)":
     if st.button("Analyser la méthode"):
         if prompt:
             try:
-                # Utilisation du modèle Llama 3.3 (Le plus récent et performant)
+                # Utilisation du modèle Llama 3.3
                 completion = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=[
@@ -37,9 +37,9 @@ elif choice == "🤖 Assistant IA (Méthodes)":
                         {"role": "user", "content": prompt}
                     ],
                 )
-
                 st.markdown("### 📘 Méthode de résolution :")
-                st.write(completion.choices.message.content)
+                # LA CORRECTION EST ICI : on ajoute [0]
+                st.write(completion.choices[0].message.content)
             except Exception as e:
                 st.error(f"Erreur de connexion à l'IA : {e}")
         else:
