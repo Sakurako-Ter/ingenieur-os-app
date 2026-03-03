@@ -50,7 +50,7 @@ if choice == "🔍 Recherche Documents":
         with st.spinner("L'IA explore les bases de données académiques..."):
             try:
                 res = client.chat.completions.create(
-                    model="llama-3.2-90b-versatile",
+                    model="llama-3.2-70b-versatile",
                     messages=[
                         {"role": "system", "content": """Tu es un documentaliste expert. 
                         Pour le sujet donné, donne :
@@ -72,6 +72,7 @@ if choice == "🔍 Recherche Documents":
 
 
 # --- PAGE 2 : ASSISTANT IA (MULTI-SUPPORTS) ---
+# --- PAGE 2 : ASSISTANT IA (MULTI-SUPPORTS) ---
 elif choice == "🤖 Assistant IA Multi":
     st.title("🤖 Assistant IA Multi-supports")
     st.write("Téléchargez un fichier (Image ou PDF) et posez votre question.")
@@ -89,24 +90,24 @@ elif choice == "🤖 Assistant IA Multi":
         else:
             st.image(uploaded_file, caption="Image détectée", width=300)
 
-    # Zone de saisie toujours présente en bas
+    # Zone de saisie
     prompt = st.chat_input("Posez votre question ici...")
 
     if prompt:
         with st.spinner("L'IA analyse votre demande..."):
             try:
-                # SCÉNARIO 1 : C'EST UNE IMAGE
+                # SCÉNARIO 1 : IMAGE (On utilise le modèle 11b-vision)
                 if uploaded_file and uploaded_file.type != "application/pdf":
                     b64 = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
                     res = client.chat.completions.create(
-                        model="llama-3.2-90b-vision-preview",
+                        model="llama-3.2-11b-vision-preview", # Modèle corrigé ici
                         messages=[{"role":"user","content":[
                             {"type":"text","text": f"Question: {prompt}\nRéponds en utilisant LaTeX pour les formules."},
                             {"type":"image_url","image_url":{"url":f"data:image/jpeg;base64,{b64}"}}
                         ]}]
                     )
                 
-                # SCÉNARIO 2 : C'EST UN PDF
+                # SCÉNARIO 2 : PDF
                 elif uploaded_file and uploaded_file.type == "application/pdf":
                     reader = PyPDF2.PdfReader(uploaded_file)
                     content = "".join([p.extract_text() for p in reader.pages[:3]])
@@ -117,23 +118,18 @@ elif choice == "🤖 Assistant IA Multi":
                 
                 # SCÉNARIO 3 : TEXTE SEUL
                 else:
-                    # Modifiez cette ligne précise dans votre bloc elif choice == "🤖 Assistant IA Multi":
                     res = client.chat.completions.create(
-                        model="llama-3.2-11b-vision-preview",  # <-- Mettre 11b ici
-                        messages=[{"role":"user","content":[
-                            {"type":"text","text": f"Question: {prompt}\nRéponds en utilisant LaTeX..."},
-                            {"type":"image_url","image_url":{"url":f"data:image/jpeg;base64,{b64}"}}
-                        ]}]
+                        model="llama-3.3-70b-versatile",
+                        messages=[{"role":"system","content":"Tu es un tuteur ingénieur expert. Réponds toujours en LaTeX."},
+                                  {"role":"user","content":prompt}]
                     )
 
-
-                # Affichage du résultat
+                # Affichage du résultat (Correction du .choices[0])
                 st.markdown("---")
                 st.markdown(render_math(res.choices[0].message.content))
 
             except Exception as e:
                 st.error(f"Erreur lors de l'analyse : {e}")
-
 
 # --- PAGE 3 : RAPPORTS LATEX (CONVERSATIONNEL) ---
 elif choice == "📝 Rapports LaTeX":
