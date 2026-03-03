@@ -57,7 +57,7 @@ if choice == "🔍 Recherche Arana":
                 ]
             )
             st.markdown("### 🎯 Conseils de recherche :")
-            st.write(res.choices.message.content)
+            st.write(res.choices[0].message.content)
             
             # Affichage des documents de ta propre base de données
             st.markdown("---")
