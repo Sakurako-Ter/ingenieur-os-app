@@ -72,7 +72,6 @@ if choice == "🔍 Recherche Documents":
 
 
 # --- PAGE 2 : ASSISTANT IA (MULTI-SUPPORTS) ---
-# --- PAGE 2 : ASSISTANT IA (MULTI-SUPPORTS) ---
 elif choice == "🤖 Assistant IA Multi":
     st.title("🤖 Assistant IA Multi-supports")
     st.write("Téléchargez un fichier (Image ou PDF) et posez votre question.")
@@ -80,26 +79,27 @@ elif choice == "🤖 Assistant IA Multi":
     # Ton modèle stable confirmé
     MODÈLE_STABLE = "meta-llama/llama-4-scout-17b-16e-instruct"
 
-    # Zone de téléchargement unique (Image ou PDF)
+    # 1. Zone de téléchargement unique (Photo ou PDF)
     uploaded_file = st.file_uploader(
         "Importer un exercice (Photo, Schéma ou PDF)", 
         type=['png', 'jpg', 'jpeg', 'pdf'],
-        key="uploader_v2026_final"
+        key="uploader_final_2026"
     )
 
     if uploaded_file:
         if uploaded_file.type == "application/pdf":
             st.info(f"📄 PDF chargé : {uploaded_file.name}")
         else:
-            st.image(uploaded_file, caption="Aperçu de l'image", width=250)
+            st.image(uploaded_file, caption="Aperçu du support", width=250)
 
-    # Zone de saisie
-    prompt = st.chat_input("Posez votre question ici...")
+    # 2. Zone de saisie (Style Math-GPT)
+    prompt = st.chat_input("Posez votre question ici (ex: 'Résous l'exercice étape par étape')...")
 
     if prompt:
-        with st.spinner(f"Analyse en cours avec {MODÈLE_STABLE}..."):
+        with st.spinner(f"Analyse avec {MODÈLE_STABLE}..."):
             try:
-                # 1. CAS IMAGE
+                # --- LOGIQUE D'ANALYSE ---
+                # CAS IMAGE
                 if uploaded_file and uploaded_file.type != "application/pdf":
                     b64 = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
                     res = client.chat.completions.create(
@@ -110,16 +110,16 @@ elif choice == "🤖 Assistant IA Multi":
                         ]}]
                     )
                 
-                # 2. CAS PDF
+                # CAS PDF
                 elif uploaded_file and uploaded_file.type == "application/pdf":
                     reader = PyPDF2.PdfReader(uploaded_file)
                     content = "".join([p.extract_text() for p in reader.pages[:3]])
                     res = client.chat.completions.create(
                         model=MODÈLE_STABLE,
-                        messages=[{"role":"user","content":f"Texte du PDF : {content[:4000]}\n\nQuestion : {prompt}. Réponds en LaTeX."}]
+                        messages=[{"role":"user","content":f"Contexte PDF : {content[:4000]}\n\nQuestion : {prompt}. Réponds en LaTeX."}]
                     )
                 
-                # 3. CAS TEXTE SEUL
+                # CAS TEXTE SEUL
                 else:
                     res = client.chat.completions.create(
                         model=MODÈLE_STABLE,
@@ -127,14 +127,43 @@ elif choice == "🤖 Assistant IA Multi":
                                   {"role":"user","content":prompt}]
                     )
 
-                # --- AFFICHAGE AVEC POLICE RÉDUITE ---
+                # --- 3. AFFICHAGE AVEC POLICE RÉDUITE (CSS CIBLÉ) ---
                 st.markdown("---")
-                st.markdown("### 🎯 Réponse :")
+                st.markdown("### 🎯 Solution :")
                 
-                # On enveloppe le résultat dans une div HTML pour réduire la taille (0.85rem = petit et pro)
                 reponse_ia = render_math(res.choices[0].message.content)
+                
                 st.markdown(f"""
-                <div style="font-size: 0.85rem; line-height: 1.4; color: #e0e0e0;">
+                <style>
+                    /* Réduction globale du texte de réponse */
+                    .reponse-ia {{
+                        font-size: 0.82rem !important; 
+                        line-height: 1.5;
+                        color: #e0e0e0;
+                    }}
+                    
+                    /* Titres d'étapes (Etape 1, 2, 3...) */
+                    .reponse-ia h1, .reponse-ia h2, .reponse-ia h3 {{
+                        font-size: 0.9rem !important;
+                        color: #2e7bc4 !important; /* Bleu pour les étapes */
+                        margin-top: 15px !important;
+                        margin-bottom: 5px !important;
+                        font-weight: bold;
+                    }}
+                    
+                    /* Mots importants ou numérotations en gras */
+                    .reponse-ia strong {{
+                        font-size: 0.85rem !important;
+                        color: #5dade2;
+                    }}
+
+                    /* Listes à puces pour plus de clarté */
+                    .reponse-ia li {{
+                        margin-bottom: 4px;
+                    }}
+                </style>
+                
+                <div class="reponse-ia">
                     {reponse_ia}
                 </div>
                 """, unsafe_allow_html=True)
