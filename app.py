@@ -1,156 +1,198 @@
 import streamlit as st
+import pandas as pd
 from groq import Groq
 import base64
 import PyPDF2
 import io
-import uuid
 
-# --- 1. CONFIGURATION ---
+# --- 1. CONFIGURATION ET CONNEXION IA ---
 st.set_page_config(page_title="Ingénieur OS", page_icon="🏗️", layout="wide")
 
 try:
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 except Exception:
-    st.error("⚠️ Clé API manquante dans les Secrets Streamlit.")
+    st.error("⚠️ Configurez votre GROQ_API_KEY dans les Secrets Streamlit.")
 
-# --- 2. GESTION DES SESSIONS ---
-if "sessions" not in st.session_state:
-    st.session_state.sessions = {} 
-if "current_sid" not in st.session_state:
-    sid = str(uuid.uuid4())
-    st.session_state.sessions[sid] = {"title": "Nouvelle discussion", "messages": []}
-    st.session_state.current_sid = sid
-
-# --- 3. STYLE CSS ---
+# --- 2. DESIGN & STYLE CSS ---
 st.markdown("""
     <style>
     .stApp { background-color: #0e1117; color: white; }
-    .stButton>button { border-radius: 8px; font-weight: bold; }
-    .home-card { background-color: #1e2130; padding: 20px; border-radius: 15px; border-left: 5px solid #2e7bc4; margin-bottom: 15px; }
-    .main-title { font-size: 3rem; font-weight: bold; color: #2e7bc4; text-align: center; }
+    .stButton>button { width: 100%; border-radius: 8px; height: 3em; background-color: #2e7bc4; color: white; font-weight: bold; border: none; }
+    .stButton>button:hover { background-color: #1e5ba0; border: 1px solid white; }
+    div.stDataFrame { border-radius: 10px; overflow: hidden; }
+    .stChatInput { border-radius: 10px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. FONCTIONS ---
+# --- 3. FONCTIONS UTILES ---
 def render_math(text):
-    return text.replace("\[", "$$").replace("\]", "$$").replace("\(", "$").replace("\)", "$") if text else ""
+    if not text: return ""
+    return text.replace("\[", "$$").replace("\]", "$$").replace("\(", "$").replace("\)", "$")
 
-def extract_pdf_text(file):
-    reader = PyPDF2.PdfReader(file)
-    return " ".join([p.extract_text() for p in reader.pages[:5]])
+# --- 4. BARRE LATÉRALE (MENU) ---
+st.sidebar.title("🚀 Ingénieur OS")
+st.sidebar.markdown("---")
+menu = ["🔍 Recherche Arana", "🤖 Assistant IA Multi", "📝 Rapports LaTeX", "🛡️ Analyse de Fiabilité", "💳 Version Premium"]
+choice = st.sidebar.radio("Navigation", menu)
+st.sidebar.markdown("---")
+st.sidebar.caption("Plateforme révolutionnaire pour le Bac 1 Ingénieur Civil.")
 
-def create_new_chat():
-    new_id = str(uuid.uuid4())
-    st.session_state.sessions[new_id] = {"title": "Nouvelle discussion", "messages": []}
-    st.session_state.current_sid = new_id
-    st.rerun()
+# --- 5. LOGIQUE DES PAGES ---
 
-# --- 5. BARRE LATÉRALE (HISTORIQUE UNIQUEMENT) ---
-with st.sidebar:
-    st.title("🚀 Ingénieur OS")
-    st.markdown("### 📜 Historique")
-    for sid in list(st.session_state.sessions.keys()):
-        col_t, col_d = st.columns([0.8, 0.2])
-        with col_t:
-            if st.button(st.session_state.sessions[sid]["title"][:20]+"...", key=f"s_{sid}", use_container_width=True):
-                st.session_state.current_sid = sid
-                st.rerun()
-        with col_d:
-            if st.button("🗑️", key=f"d_{sid}"):
-                del st.session_state.sessions[sid]
-                if not st.session_state.sessions: create_new_chat()
-                elif st.session_state.current_sid == sid:
-                    st.session_state.current_sid = list(st.session_state.sessions.keys())[0]
-                st.rerun()
-    st.markdown("---")
-    choice = st.radio("Navigation", ["🏠 Accueil", "🤖 Assistant IA", "🔍 Recherche Arana", "📝 Rapports LaTeX"])
-
-# --- 6. LOGIQUE DES PAGES ---
-
-if choice == "🏠 Accueil":
-    st.markdown('<h1 class="main-title">🏗️ Ingénieur OS</h1>', unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'>Système expert pour Polytechnique.</p>", unsafe_allow_html=True)
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown('<div class="home-card"><h3>🤖 Assistant IA</h3><p>Chat, PDF et Vision réunis en un seul flux.</p></div>', unsafe_allow_html=True)
-    with col2:
-        st.markdown('<div class="home-card"><h3>📝 Rapports</h3><p>Générateur de templates LaTeX.</p></div>', unsafe_allow_html=True)
-    if st.button("🚀 Ouvrir l'Assistant"):
-        st.session_state.choice = "🤖 Assistant IA" # Note: pour forcer le changement
-        st.rerun()
-
-elif choice == "🤖 Assistant IA":
-    session = st.session_state.sessions[st.session_state.current_sid]
+# --- PAGE 1 : RECHERCHE (ARANA) ---
+if choice == "🔍 Recherche Arana":
+    st.title("📚 Moteur de Recherche de Sources Certifiées")
+    st.write("Trouvez des références académiques (articles, thèses, ouvrages) pour vos rapports.")
     
-    # Header avec bouton Nouvelle Conversation sur la page
-    col_title, col_new = st.columns([0.8, 0.2])
-    with col_title:
-        st.title(f"💬 {session['title']}")
-    with col_new:
-        if st.button("➕ Nouveau", use_container_width=True):
-            create_new_chat()
+    query = st.text_input("Sujet scientifique (ex: Résistance des matériaux)", placeholder="Entrez un concept précis...")
+    
+    if query:
+        with st.spinner("L'IA explore les bases de données académiques..."):
+            try:
+                res = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[
+                        {"role": "system", "content": """Tu es un documentaliste expert. 
+                        Pour le sujet donné, donne :
+                        1. 📖 OUVRAGES : 2 livres classiques.
+                        2. 🎓 THÈSES/ARTICLES : 2 ou 3 titres réels.
+                        3. 🔗 LIENS : Liens cliquables vers Google Scholar/ResearchGate.
+                        Réponds en LaTeX pour les formules."""},
+                        {"role": "user", "content": f"Recherche approfondie : {query}"}
+                    ]
+                )
+                
+                st.markdown("### 🎯 Résultats de la recherche :")
+                # LE [0] EST ICI POUR ÉVITER L'ERREUR
+                st.markdown(render_math(res.choices[0].message.content))
+                
+            except Exception as e:
+                st.error(f"Erreur de recherche : {e}")
 
-    # Zone d'upload (Photo ou PDF)
-    uploaded_file = st.file_uploader("Scanner un exercice (Photo) ou un syllabus (PDF)", type=['png', 'jpg', 'jpeg', 'pdf'])
+
+
+# --- PAGE 2 : ASSISTANT IA (TEXTE, PHOTO, PDF) ---
+elif choice == "🤖 Assistant IA Multi":
+    st.title("🤖 Assistant IA Multi-supports")
+    tab1, tab2, tab3 = st.tabs(["📄 Texte", "📸 Photo / Schéma", "📂 Document PDF"])
+
+    with tab1:
+        txt = st.text_area("Énoncé du problème :", height=150, placeholder="Ex: Comment calculer la flèche d'une poutre ?")
+        if st.button("Analyser le texte"):
+            with st.spinner("Réflexion..."):
+                res = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[{"role":"system","content":"Tuteur ingénieur. Réponds en LaTeX."}, {"role":"user","content":txt}]
+                )
+                st.markdown(render_math(res.choices[0].message.content))
+
+    with tab2:
+        img = st.file_uploader("Photo de l'exercice :", type=['png', 'jpg', 'jpeg'])
+        if img:
+            st.image(img, width=400)
+            if st.button("Analyser la photo"):
+                with st.spinner("L'IA examine l'image..."):
+                    b64 = base64.b64encode(img.getvalue()).decode('utf-8')
+                    res = client.chat.completions.create(
+                        model="llama-3.2-11b-vision-preview",
+                        messages=[{"role":"user","content":[
+                            {"type":"text","text":"Analyse cet exercice et explique la méthode en LaTeX."},
+                            {"type":"image_url","image_url":{"url":f"data:image/jpeg;base64,{b64}"}}
+                        ]}]
+                    )
+                    st.markdown(render_math(res.choices[0].message.content))
+
+    with tab3:
+        pdf = st.file_uploader("Syllabus ou Examen (PDF) :", type=['pdf'])
+        if pdf and st.button("Analyser le PDF"):
+            with st.spinner("Lecture du PDF..."):
+                reader = PyPDF2.PdfReader(pdf)
+                content = "".join([p.extract_text() for p in reader.pages[:3]])
+                res = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[{"role":"user","content":f"Analyse ce contenu de PDF d'ingénieur et réponds aux questions en LaTeX: {content[:5000]}"}]
+                )
+                st.markdown(render_math(res.choices[0].message.content))
+
+# --- PAGE 3 : RAPPORTS LATEX (CONVERSATIONNEL) ---
+elif choice == "📝 Rapports LaTeX":
+    st.title("📝 Copilote LaTeX Conversationnel")
+    st.info("Explique ton projet (ex: 'Fais-moi un rapport de physique').")
+
+    # Initialisation de la mémoire dans la session
+    if "latex_chat" not in st.session_state:
+        st.session_state.latex_chat = []
 
     # Affichage des messages
-    for msg in session["messages"]:
+    for msg in st.session_state.latex_chat:
         with st.chat_message(msg["role"]):
-            st.markdown(render_math(msg["content"]))
+            st.markdown(msg["content"])
 
-    # Chat Input
-    if prompt := st.chat_input("Posez votre question ou expliquez le fichier joint..."):
-        if not session["messages"]: session["title"] = prompt[:25]
-        
-        content_payload = []
-        text_context = ""
-
-        # Traitement du fichier joint
-        if uploaded_file:
-            if uploaded_file.type == "application/pdf":
-                text_context = f"\n[Document PDF]: {extract_pdf_text(uploaded_file)}\n"
-            else:
-                # Si c'est une image, on utilise le modèle Vision
-                b64 = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
-                content_payload = [
-                    {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}
-                ]
-
-        # Ajout du message utilisateur
-        user_text = text_context + prompt
-        session["messages"].append({"role": "user", "content": user_text})
+    # Zone de saisie
+    if user_input := st.chat_input("Décris ton rapport ici..."):
+        st.session_state.latex_chat.append({"role": "user", "content": user_input})
         with st.chat_message("user"):
-            st.markdown(prompt)
-            if uploaded_file and "image" in uploaded_file.type: st.image(uploaded_file, width=300)
+            st.markdown(user_input)
 
-        # Réponse IA
         with st.chat_message("assistant"):
             try:
-                model = "llama-3.2-11b-vision-preview" if content_payload else "llama-3.3-70b-versatile"
-                messages_input = [{"role": "system", "content": "Ingénieur expert. LaTeX obligatoire."}] + session["messages"]
+                # Appel IA
+                messages = [{"role": "system", "content": "Expert LaTeX. Donne le code complet."}] + st.session_state.latex_chat
+                res = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=messages)
+                full_code = res.choices.message.content
                 
-                # Si c'est une image, on remplace le dernier message par le format vision
-                if content_payload:
-                    messages_input[-1] = {"role": "user", "content": content_payload}
-
-                res = client.chat.completions.create(model=model, messages=messages_input)
-                ans = res.choices[0].message.content
-                st.markdown(render_math(ans))
-                session["messages"].append({"role": "assistant", "content": ans})
+                st.code(full_code, language="latex")
+                st.session_state.latex_chat.append({"role": "assistant", "content": full_code})
             except Exception as e:
                 st.error(f"Erreur : {e}")
 
-elif choice == "🔍 Recherche Arana":
-    st.title("📚 Recherche Arana")
-    q = st.text_input("Sujet :")
-    if q:
-        res = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role":"user","content":f"Sources pour {q}"}])
-        st.write(res.choices[0].message.content)
+# --- PAGE 4 : ANALYSE DE FIABILITÉ ---
+elif choice == "🛡️ Analyse de Fiabilité":
+    st.title("🛡️ Analyseur de Fiabilité Scientifique")
+    st.write("Vérifiez si un document ou une source est digne d'être cité dans un rapport d'ingénieur.")
 
-elif choice == "📝 Rapports LaTeX":
-    st.title("📝 Générateur LaTeX")
-    t = st.text_area("Sujet du rapport :")
-    if st.button("Générer"):
-        res = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role":"user","content":f"Code LaTeX pour {t}"}])
-        st.code(res.choices[0].message.content, language="latex")
+    col1, col2 = st.columns(2)
+    with col1:
+        sujet_recherche = st.text_input("Sujet de votre travail :", placeholder="Ex: Étude de la fatigue de l'acier")
+    with col2:
+        type_doc = st.selectbox("Type de source :", ["Article Web", "Livre/Syllabus", "Vidéo/Blog", "Publication Scientifique"])
+
+    doc_content = st.text_area("Collez ici un extrait du texte ou le nom/auteur de la source :", height=200)
+
+    if st.button("Lancer l'audit de fiabilité"):
+        if sujet_recherche and doc_content:
+            with st.spinner("Analyse des critères de scientificité..."):
+                try:
+                    res = client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[
+                            {"role": "system", "content": """Tu es un expert en intégrité académique. 
+                            Analyse la source fournie selon ces 4 critères :
+                            1. AUTORITÉ : Qui est l'auteur/éditeur ? Est-il reconnu ?
+                            2. RIGUEUR : Le langage est-il scientifique ? Y a-t-il des preuves/calculs ?
+                            3. PERTINENCE : Est-ce adapté au sujet de recherche de l'étudiant ?
+                            4. VERDICT : Note sur 10 et recommandation (Citer / Ne pas citer).
+                            Réponds de manière concise et critique."""},
+                            {"role": "user", "content": f"Sujet: {sujet_recherche}\nType: {type_doc}\nContenu à analyser: {doc_content}"}
+                        ]
+                    )
+                    st.markdown("### 📊 Rapport d'Audit de la Source")
+                    st.markdown(res.choices[0].message.content)
+                    
+                    st.success("💡 Conseil : Un score inférieur à 6/10 ne devrait pas figurer dans votre bibliographie officielle.")
+                except Exception as e:
+                    st.error(f"Erreur d'analyse : {e}")
+        else:
+            st.warning("Veuillez remplir le sujet et le contenu à analyser.")
+
+
+# --- PAGE 5 : PREMIUM ---
+elif choice == "💳 Version Premium":
+    st.title("💳 Passez au Niveau Premium")
+    st.markdown("""
+    ### Débloquez la puissance totale :
+    - ✅ **Recherche illimitée** dans toutes les archives d'examens.
+    - ✅ **IA Vision & PDF sans limites** (Analyse de documents complets).
+    - ✅ **Accès aux corrigés détaillés** rédigés par des tuteurs.
+    """)
+    st.link_button("🚀 S'abonner (9,99€ / mois)", "https://www.lemonsqueezy.com")
