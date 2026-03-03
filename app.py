@@ -74,34 +74,35 @@ if choice == "🔍 Recherche Documents":
 # --- PAGE 2 : ASSISTANT IA (MULTI-SUPPORTS) ---
 elif choice == "🤖 Assistant IA Multi":
     st.title("🤖 Assistant IA Multi-supports")
-    
-    # Bouton unique pour Photo et PDF
+    st.write("Téléchargez un fichier (Image ou PDF) et posez votre question.")
+
+    # Modèle stable que tu as confirmé
+    MODÈLE_STABLE = "meta-llama/llama-4-scout-17b-16e-instruct"
+
     uploaded_file = st.file_uploader(
         "Importer un exercice (Photo, Schéma ou PDF)", 
         type=['png', 'jpg', 'jpeg', 'pdf'],
-        key="uploader_vfinal_secure"
+        key="uploader_2026_final"
     )
 
     if uploaded_file:
         if uploaded_file.type == "application/pdf":
-            st.info(f"📄 PDF prêt : {uploaded_file.name}")
+            st.info(f"📄 PDF chargé : {uploaded_file.name}")
         else:
-            st.image(uploaded_file, caption="Image prête", width=300)
+            st.image(uploaded_file, caption="Image chargée", width=300)
 
-    # Zone de saisie style Math-GPT
     prompt = st.chat_input("Posez votre question ici...")
 
     if prompt:
-        with st.spinner("Analyse en cours..."):
+        with st.spinner(f"Analyse avec {MODÈLE_STABLE}..."):
             try:
                 # 1. CAS IMAGE
                 if uploaded_file and uploaded_file.type != "application/pdf":
                     b64 = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
-                    # On tente le 90b qui est le plus stable en accès
                     res = client.chat.completions.create(
-                        model="llama-3.2-90b-vision-preview", 
+                        model=MODÈLE_STABLE, 
                         messages=[{"role":"user","content":[
-                            {"type":"text","text": f"{prompt}\nRéponds en LaTeX."},
+                            {"type":"text","text": f"Analyse cette image et réponds à la question suivante en LaTeX : {prompt}"},
                             {"type":"image_url","image_url":{"url":f"data:image/jpeg;base64,{b64}"}}
                         ]}]
                     )
@@ -111,25 +112,25 @@ elif choice == "🤖 Assistant IA Multi":
                     reader = PyPDF2.PdfReader(uploaded_file)
                     content = "".join([p.extract_text() for p in reader.pages[:3]])
                     res = client.chat.completions.create(
-                        model="llama-3.3-70b-versatile",
-                        messages=[{"role":"user","content":f"PDF: {content[:4000]}\nQuestion: {prompt}. Réponds en LaTeX."}]
+                        model=MODÈLE_STABLE,
+                        messages=[{"role":"user","content":f"Voici un extrait de PDF : {content[:4000]}\n\nQuestion : {prompt}. Réponds en LaTeX."}]
                     )
                 
                 # 3. CAS TEXTE SEUL
                 else:
                     res = client.chat.completions.create(
-                        model="llama-3.3-70b-versatile",
-                        messages=[{"role":"system","content":"Expert Ingénieur. Réponds en LaTeX."},
+                        model=MODÈLE_STABLE,
+                        messages=[{"role":"system","content":"Tu es un expert ingénieur. Réponds toujours en LaTeX."},
                                   {"role":"user","content":prompt}]
                     )
 
-                # AFFICHAGE (Syntaxe Groq officielle)
+                # AFFICHAGE DU RÉSULTAT
                 st.markdown("---")
                 st.markdown(render_math(res.choices[0].message.content))
                 
             except Exception as e:
                 st.error(f"Erreur d'analyse : {e}")
-                st.info("Vérifiez vos modèles disponibles sur la [Console Groq](https://console.groq.com)")
+
 
 
 # --- PAGE 3 : RAPPORTS LATEX (CONVERSATIONNEL) ---
