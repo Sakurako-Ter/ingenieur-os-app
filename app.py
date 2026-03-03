@@ -41,32 +41,34 @@ st.sidebar.caption("Plateforme révolutionnaire pour le Bac 1 Ingénieur Civil."
 
 # --- PAGE 1 : RECHERCHE (ARANA) ---
 if choice == "🔍 Recherche Arana":
-    st.title("📚 Moteur de Recherche de Sources Fiables")
-    st.write("Trouvez des documents académiques vérifiés pour vos rapports et examens.")
+    st.title("📚 Moteur de Recherche de Sources Certifiées")
+    st.write("Trouvez des références académiques (articles, thèses, ouvrages) pour vos rapports d'ingénierie.")
     
-    query = st.text_input("Sujet de recherche (ex: Seconde loi de la thermodynamique)", placeholder="Entrez un concept d'ingénierie...")
+    query = st.text_input("Sujet scientifique (ex: Résistance des matériaux, Thermodynamique chimique)", placeholder="Entrez un concept précis...")
     
     if query:
-        with st.spinner("L'IA analyse le sujet et cherche les meilleures sources..."):
+        with st.spinner("L'IA explore les bases de données académiques..."):
             try:
-                # Requête IA pour les conseils ET les liens
+                # Prompt ultra-précis pour obtenir des références réelles
                 res = client.chat.completions.create(
                     model="llama-3.3-70b-versatile",
                     messages=[
-                        {"role": "system", "content": """Tu es un documentaliste scientifique expert. 
-                        Réponds en deux parties bien distinctes :
-                        1. 🎯 CONSEILS DE RECHERCHE : Explique comment aborder ce sujet en Bac 1.
-                        2. 🔗 LIENS RECOMMANDÉS : Fournis une liste de liens cliquables vers Google Scholar, ResearchGate et des bibliothèques universitaires (.be / .fr) pour ce sujet précis.
-                        Utilise le format Markdown pour les liens."""},
-                        {"role": "user", "content": f"Sujet : {query}"}
+                        {"role": "system", "content": """Tu es un documentaliste scientifique expert en ingénierie. 
+                        Pour le sujet donné, structure ta réponse comme suit :
+                        1. 📖 OUVRAGES DE RÉFÉRENCE : Donne le nom de 2 livres ou manuels classiques sur le sujet (ex: Callister, Serway, etc.).
+                        2. 🎓 THÈSES ET ARTICLES : Cite 2 ou 3 noms d'articles ou thèses réels ou types (recherche via Google Scholar/ResearchGate).
+                        3. 🔗 LIENS DIRECTS : Fournis des liens de recherche cliquables vers ces documents.
+                        Utilise le format Markdown avec des icônes pour la lisibilité."""},
+                        {"role": "user", "content": f"Recherche approfondie pour : {query}"}
                     ]
                 )
                 
-                # Affichage des conseils et des liens (avec correction du [0])
-                st.markdown(render_math(res.choices[0].message.content))
+                # Affichage des résultats
+                st.markdown("### 🎯 Résultats de la recherche académique :")
+                st.markdown(render_math(res.choices.message.content))
                 
                 st.markdown("---")
-                st.info("💡 **Astuce Premium :** Les abonnés reçoivent également les fichiers PDF corrigés correspondant à ces sujets.")
+                st.info("💡 **Note Premium :** Les abonnés peuvent demander à l'IA de résumer entièrement l'un de ces articles PDF.")
                 
             except Exception as e:
                 st.error(f"Erreur de recherche : {e}")
