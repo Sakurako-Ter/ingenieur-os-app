@@ -50,7 +50,7 @@ if choice == "🔍 Recherche Documents":
         with st.spinner("L'IA explore les bases de données académiques..."):
             try:
                 res = client.chat.completions.create(
-                    model="llama-3.3-90b-versatile",
+                    model="llama-3.2-90b-versatile",
                     messages=[
                         {"role": "system", "content": """Tu es un documentaliste expert. 
                         Pour le sujet donné, donne :
@@ -117,11 +117,15 @@ elif choice == "🤖 Assistant IA Multi":
                 
                 # SCÉNARIO 3 : TEXTE SEUL
                 else:
+                    # Modifiez cette ligne précise dans votre bloc elif choice == "🤖 Assistant IA Multi":
                     res = client.chat.completions.create(
-                        model="llama-3.3-70b-versatile",
-                        messages=[{"role":"system","content":"Tu es un tuteur ingénieur expert. Réponds toujours en LaTeX."},
-                                  {"role":"user","content":prompt}]
+                        model="llama-3.2-11b-vision-preview",  # <-- Mettre 11b ici
+                        messages=[{"role":"user","content":[
+                            {"type":"text","text": f"Question: {prompt}\nRéponds en utilisant LaTeX..."},
+                            {"type":"image_url","image_url":{"url":f"data:image/jpeg;base64,{b64}"}}
+                        ]}]
                     )
+
 
                 # Affichage du résultat
                 st.markdown("---")
