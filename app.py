@@ -41,24 +41,28 @@ st.sidebar.caption("Plateforme révolutionnaire pour le Bac 1 Ingénieur Civil."
 
 # --- PAGE 1 : RECHERCHE (ARANA) ---
 if choice == "🔍 Recherche Arana":
-    st.title("🔍 Moteur de Recherche d'Examens")
-    try:
-        df = pd.read_csv("data/examens.csv")
-        col1, col2 = st.columns(2)
-        with col1:
-            univ = st.multiselect("Université", df["universite"].unique())
-        with col2:
-            query = st.text_input("Concept (ex: Matrices, Force...)", placeholder="Tapez un mot-clé...")
-        
-        filtered = df
-        if univ: filtered = filtered[filtered["universite"].isin(univ)]
-        if query: 
-            mask = filtered.astype(str).apply(lambda x: x.str.contains(query, case=False)).any(axis=1)
-            filtered = filtered[mask]
-        
-        st.dataframe(filtered, use_container_width=True)
-    except Exception:
-        st.warning("⚠️ Fichier 'data/examens.csv' introuvable sur GitHub. Créez-le pour activer la recherche.")
+    st.title("📚 Moteur de Recherche de Sources Fiables")
+    st.write("Trouvez des documents académiques vérifiés pour vos rapports et examens.")
+    
+    query = st.text_input("Sujet de recherche (ex: Seconde loi de la thermodynamique)")
+    
+    if query:
+        with st.spinner("L'IA cherche les meilleures sources..."):
+            # L'IA agit ici comme un filtre intelligent
+            res = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {"role": "system", "content": "Tu es un documentaliste scientifique. Recommande 3 types de documents fiables (Livre, Syllabus, Article) pour le sujet donné. Donne des mots-clés pour chercher sur Google Scholar."},
+                    {"role": "user", "content": query}
+                ]
+            )
+            st.markdown("### 🎯 Conseils de recherche :")
+            st.write(res.choices.message.content)
+            
+            # Affichage des documents de ta propre base de données
+            st.markdown("---")
+            st.subheader("📁 Documents disponibles dans la bibliothèque Ingé-OS")
+            # (Ici tu gardes ton code de filtrage du CSV que nous avons fait avant)
 
 # --- PAGE 2 : ASSISTANT IA (TEXTE, PHOTO, PDF) ---
 elif choice == "🤖 Assistant IA Multi":
