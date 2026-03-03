@@ -16,8 +16,20 @@ if choice == "🔍 Recherche Annales":
 elif choice == "🤖 Assistant IA (Méthodes)":
     st.subheader("Assistant Tuteur (Zéro Bla-bla)")
     prompt = st.text_area("Colle ton énoncé ici pour obtenir la méthode de résolution :")
-    if st.button("Analyser"):
-        st.write("Analyse en cours via Llama-3 (Groq)...")
+        if st.button("Analyser la méthode"):
+        if prompt:
+            try:
+                completion = client.chat.completions.create(
+                    model="llama3-8b-8192", # Version plus légère et rapide
+                    messages=[
+                        {"role": "system", "content": "Tu es un tuteur ingénieur civil. Réponds en LaTeX."},
+                        {"role": "user", "content": prompt}
+                    ],
+                )
+                st.markdown(completion.choices.message.content)
+            except Exception as e:
+                st.error(f"Erreur de connexion : {e}")
+
 
 elif choice == "📝 Générateur Rapport":
     st.subheader("Outils de rédaction Mémoires & Rapports")
