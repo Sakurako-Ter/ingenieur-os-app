@@ -66,16 +66,22 @@ if st.session_state.user_profile is None:
             else:
                 entreprise = st.text_input("Entreprise ou Institution")
                 expertise = st.selectbox("Domaine d'expertise :", ["Génie Civil", "Électromécanique", "IA/Data", "Matériaux", "Autre"])
-                precision_exp = st.text_input("Précisez votre spécialité (ex: Géotechnique) :") if expertise == "Autre" else ""
+                
+                # LA PRÉCISION EST ICI
+                precision_exp = st.text_input("Précisez votre spécialité exacte (ex: Géotechnique, Aéronautique) :") if expertise == "Autre" else ""
+                
                 linkedin = st.text_input("Lien LinkedIn (Vérification IA)")
                 
                 if st.form_submit_button("Vérifier et entrer"):
+                    # On définit la spécialité finale
                     final_exp = precision_exp if expertise == "Autre" else expertise
-                    if nom and linkedin:
-                        with st.spinner("Vérification de l'expertise via IA..."):
+                    
+                    if nom and linkedin and final_exp:
+                        with st.spinner(f"Vérification de l'expertise en {final_exp}..."):
+                            # ON FORCE L'IA À UTILISER LA PRÉCISION ICI
                             check = client.chat.completions.create(
                                 model="llama-3.3-70b-versatile", 
-                                messages=[{"role":"user","content":f"Analyse ce LinkedIn: {linkedin}. Est-il cohérent pour un expert en {final_exp} chez {entreprise}? Réponds par OUI ou NON + courte raison."}]
+                                messages=[{"role":"user","content": f"Analyse ce profil LinkedIn : {linkedin}. Cet utilisateur prétend être un expert précis en '{final_exp}' au sein de l'entité '{entreprise}'. Est-ce que cela semble cohérent et véridique ? Réponds par OUI ou NON, puis justifie brièvement."}]
                             )
                             verdict = check.choices[0].message.content
                             if "OUI" in verdict.upper():
@@ -83,6 +89,7 @@ if st.session_state.user_profile is None:
                                 st.rerun()
                             else:
                                 st.error(f"Vérification échouée : {verdict}")
+
         st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
