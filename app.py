@@ -57,51 +57,14 @@ if st.session_state.user_profile is None and st.session_state.page == "home":
         st.markdown('<div class="feature-card">📝 <b>LaTeX</b><p>Copilote de rapports pro</p></div>', unsafe_allow_html=True)
     
     if st.button("🚀 ACCÉDER À LA PLATEFORME"):
-        st.session_state.page = "config_profile"
+        # Initialisation d'un profil par défaut pour accès direct
+        st.session_state.user_profile = {"nom": "Invité", "role": "Étudiant", "entite": "Non précisé", "detail": "Général", "link": ""}
         st.rerun()
 
-# B. PAGE DE CONFIGURATION INITIALE DU PROFIL (SANS AUTH)
-elif st.session_state.user_profile is None and st.session_state.page == "config_profile":
-    st.title("🏗️ Configurez votre Profil")
-    
-    with st.form("main_reg_form"):
-        role = st.radio("Votre profil :", ["Élève (Secondaire)", "Étudiant (Université)", "Professionnel / Expert"], horizontal=True)
-        nom = st.text_input("Nom / Pseudo")
-        entite = st.text_input("École / Université / Entreprise")
-        
-        # Gestion dynamique du détail
-        st.write("---")
-        expertise_list = ["Math Fortes", "Sciences", "Polytech", "Génie Civil", "IA/Data", "Autre"]
-        detail_selection = st.selectbox("Domaine / Faculté / Option :", expertise_list)
-        
-        detail_precision = ""
-        if detail_selection == "Autre":
-            detail_precision = st.text_input("Précisez votre spécialité exacte :")
-        
-        link = st.text_input("Lien LinkedIn (Obligatoire pour les Experts)")
-        
-        submitted = st.form_submit_button("Valider et Entrer")
-        
-        if submitted:
-            final_detail = detail_precision if detail_selection == "Autre" else detail_selection
-            if role == "Professionnel / Expert":
-                verdict = verify_expert(link, final_detail, entite)
-                if "OUI" in verdict.upper():
-                    st.session_state.user_profile = {"nom": nom, "role": role, "entite": entite, "detail": final_detail, "link": link}
-                    st.rerun()
-                else:
-                    st.error(f"Validation échouée : {verdict}")
-            elif nom and entite and final_detail:
-                st.session_state.user_profile = {"nom": nom, "role": role, "entite": entite, "detail": final_detail, "link": ""}
-                st.rerun()
-            else:
-                st.error("Veuillez remplir tous les champs.")
-
-# C. INTERFACE PRINCIPALE (DASHBOARD)
+# B. INTERFACE PRINCIPALE (DASHBOARD)
 elif st.session_state.user_profile:
     st.sidebar.title(f"🚀 {st.session_state.user_profile['nom']}")
     st.sidebar.info(f"Profil : {st.session_state.user_profile['role']}")
-    st.sidebar.caption(f"📍 {st.session_state.user_profile['entite']} ({st.session_state.user_profile['detail']})")
     
     menu = ["🔍 Recherche Certifiée", "🤖 Assistant IA Multi", "📝 Rapports & BibTeX", "⚙️ Modifier mon Profil", "💎 Premium"]
     choice = st.sidebar.radio("Navigation", menu)
@@ -112,8 +75,10 @@ elif st.session_state.user_profile:
     # --- PAGE MODIFIER PROFIL ---
     if choice == "⚙️ Modifier mon Profil":
         st.title("⚙️ Paramètres du Profil")
+        st.write("Personnalisez votre expérience pour des résultats plus précis.")
         with st.form("update_form"):
-            new_role = st.radio("Changer de profil :", ["Élève (Secondaire)", "Étudiant (Université)", "Professionnel / Expert"], 
+            new_nom = st.text_input("Nom / Pseudo", value=st.session_state.user_profile['nom'])
+            new_role = st.radio("Statut :", ["Élève (Secondaire)", "Étudiant (Université)", "Professionnel / Expert"], 
                                 index=["Élève (Secondaire)", "Étudiant (Université)", "Professionnel / Expert"].index(st.session_state.user_profile['role']))
             new_entite = st.text_input("École / Univ / Entreprise", value=st.session_state.user_profile['entite'])
             new_detail = st.text_input("Spécialité / Option", value=st.session_state.user_profile['detail'])
@@ -123,17 +88,17 @@ elif st.session_state.user_profile:
                 if new_role == "Professionnel / Expert":
                     verdict = verify_expert(new_link, new_detail, new_entite)
                     if "OUI" in verdict.upper():
-                        st.session_state.user_profile.update({"role": new_role, "entite": new_entite, "detail": new_detail, "link": new_link})
+                        st.session_state.user_profile.update({"nom": new_nom, "role": new_role, "entite": new_entite, "detail": new_detail, "link": new_link})
                         st.success("Profil Expert validé !")
                     else:
                         st.error(f"Échec de validation : {verdict}")
                 else:
-                    st.session_state.user_profile.update({"role": new_role, "entite": new_entite, "detail": new_detail})
+                    st.session_state.user_profile.update({"nom": new_nom, "role": new_role, "entite": new_entite, "detail": new_detail})
                     st.success("Profil mis à jour !")
 
     elif choice == "🔍 Recherche Certifiée":
         st.title("📚 Moteur de Recherche Scientifique")
-        q = st.text_input("Sujet :")
+        q = st.text_input("Sujet de recherche :")
         if q:
             res = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role":"user","content":f"Donne des sources fiables pour {q}."}])
             st.markdown(render_math(res.choices[0].message.content))
@@ -145,4 +110,5 @@ elif st.session_state.user_profile:
 
     elif choice == "💎 Premium":
         st.title("💎 Mode Premium")
+        st.write("Accédez aux corrigés d'annales et à l'IA Vision illimitée.")
         st.link_button("🚀 S'abonner (9,99€/mois)", "https://votre-boutique.lemonsqueezy.com")
