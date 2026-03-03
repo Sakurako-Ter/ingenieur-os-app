@@ -34,8 +34,8 @@ if "auth_status" not in st.session_state:
     st.session_state.auth_status = False
     st.session_state.user_data = None
 
-# ÉCRAN DE CONNEXION (Google / Apple)
-if not st.session_status:
+# ÉCRAN DE CONNEXION (Correction ici)
+if not st.session_state.auth_status:
     st.title("🏗️ Ingénieur OS : Connexion Certifiée")
     st.markdown("---")
     col1, col2 = st.columns(2)
