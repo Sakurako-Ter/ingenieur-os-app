@@ -50,7 +50,7 @@ if choice == "🔍 Recherche Documents":
         with st.spinner("L'IA explore les bases de données académiques..."):
             try:
                 res = client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
+                    model="llama-3.3-90b-versatile",
                     messages=[
                         {"role": "system", "content": """Tu es un documentaliste expert. 
                         Pour le sujet donné, donne :
@@ -71,69 +71,64 @@ if choice == "🔍 Recherche Documents":
 
 
 
-# --- PAGE 2 : ASSISTANT IA (MISE À JOUR MODÈLES ET BOUTON) ---
-elif choice == "🤖 Assistant IA":
-    session = st.session_state.sessions[st.session_state.current_sid]
-    
-    # 1. Bouton Nouveau Chat sur la page (Header)
-    col_title, col_new = st.columns([0.8, 0.2])
-    with col_title:
-        st.title(f"💬 {session['title']}")
-    with col_new:
-        if st.button("➕ Nouveau", use_container_width=True):
-            create_new_chat() # Utilise ta fonction de création de session
+# --- PAGE 2 : ASSISTANT IA (MULTI-SUPPORTS) ---
+elif choice == "🤖 Assistant IA Multi":
+    st.title("🤖 Assistant IA Multi-supports")
+    st.write("Téléchargez un fichier (Image ou PDF) et posez votre question.")
 
-    # 2. Upload unique (Analyse photo intégrée)
-    uploaded_file = st.file_uploader("Joindre un exercice (Photo) ou un syllabus (PDF)", type=['png', 'jpg', 'jpeg', 'pdf'])
+    # Un seul sélecteur pour tous les types de fichiers
+    uploaded_file = st.file_uploader(
+        "Importer un exercice (Photo, Schéma ou PDF)", 
+        type=['png', 'jpg', 'jpeg', 'pdf'],
+        help="Accepte les images (JPG, PNG) et les documents PDF"
+    )
 
-    # 3. Affichage de l'historique
-    for msg in session["messages"]:
-        with st.chat_message(msg["role"]):
-            st.markdown(render_math(msg["content"]))
+    if uploaded_file:
+        if uploaded_file.type == "application/pdf":
+            st.info(f"📄 PDF détecté : {uploaded_file.name}")
+        else:
+            st.image(uploaded_file, caption="Image détectée", width=300)
 
-    # 4. Entrée utilisateur et Logique d'appel
-    if prompt := st.chat_input("Posez votre question..."):
-        if not session["messages"]: 
-            session["title"] = prompt[:25]
-        
-        image_b64 = None
-        text_context = ""
+    # Zone de saisie toujours présente en bas
+    prompt = st.chat_input("Posez votre question ici...")
 
-        if uploaded_file:
-            if uploaded_file.type == "application/pdf":
-                text_context = f"\n[Document PDF]: {extract_pdf_text(uploaded_file)}\n"
-            else:
-                image_b64 = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
-
-        user_msg_content = text_context + prompt
-        session["messages"].append({"role": "user", "content": user_msg_content})
-        
-        with st.chat_message("user"):
-            st.markdown(prompt)
-            if image_b64: st.image(uploaded_file, width=300)
-
-        with st.chat_message("assistant"):
+    if prompt:
+        with st.spinner("L'IA analyse votre demande..."):
             try:
-                # MISE À JOUR MODÈLE VISION : 90b-vision-preview
-                if image_b64:
-                    model_to_use = "llama-3.2-90b-vision-preview"
-                    messages_payload = [
-                        {"role": "system", "content": "Ingénieur expert. LaTeX requis."},
-                        {"role": "user", "content": [
-                            {"type": "text", "text": user_msg_content},
-                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}}
-                        ]}
-                    ]
+                # SCÉNARIO 1 : C'EST UNE IMAGE
+                if uploaded_file and uploaded_file.type != "application/pdf":
+                    b64 = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
+                    res = client.chat.completions.create(
+                        model="llama-3.2-90b-vision-preview",
+                        messages=[{"role":"user","content":[
+                            {"type":"text","text": f"Question: {prompt}\nRéponds en utilisant LaTeX pour les formules."},
+                            {"type":"image_url","image_url":{"url":f"data:image/jpeg;base64,{b64}"}}
+                        ]}]
+                    )
+                
+                # SCÉNARIO 2 : C'EST UN PDF
+                elif uploaded_file and uploaded_file.type == "application/pdf":
+                    reader = PyPDF2.PdfReader(uploaded_file)
+                    content = "".join([p.extract_text() for p in reader.pages[:3]])
+                    res = client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[{"role":"user","content":f"Analyse ce PDF d'ingénieur. Texte: {content[:4000]}\n\nQuestion: {prompt}. Réponds en LaTeX."}]
+                    )
+                
+                # SCÉNARIO 3 : TEXTE SEUL
                 else:
-                    model_to_use = "llama-3.3-70b-versatile"
-                    messages_payload = [{"role": "system", "content": "Ingénieur expert. LaTeX requis."}] + session["messages"]
+                    res = client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[{"role":"system","content":"Tu es un tuteur ingénieur expert. Réponds toujours en LaTeX."},
+                                  {"role":"user","content":prompt}]
+                    )
 
-                res = client.chat.completions.create(model=model_to_use, messages=messages_payload)
-                ans = res.choices[0].message.content
-                st.markdown(render_math(ans))
-                session["messages"].append({"role": "assistant", "content": ans})
+                # Affichage du résultat
+                st.markdown("---")
+                st.markdown(render_math(res.choices[0].message.content))
+
             except Exception as e:
-                st.error(f"Erreur d'analyse : {e}")
+                st.error(f"Erreur lors de l'analyse : {e}")
 
 
 # --- PAGE 3 : RAPPORTS LATEX (CONVERSATIONNEL) ---
@@ -206,4 +201,4 @@ elif choice == "🛡️ Analyse de Fiabilité":
                     st.error(f"Erreur d'analyse : {e}")
         else:
             st.warning("Veuillez remplir le sujet et le contenu à analyser.")
-
+            
