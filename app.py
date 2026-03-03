@@ -1,115 +1,67 @@
-import streamlit as st
-import pandas as pd
-from groq import Groq
-import base64
-import PyPDF2
-import io
-from PIL import Image
+# --- PAGE 4 : ANALYSE DE FIABILITÉ (MULTI-SUPPORTS) ---
+elif choice == "🛡️ Analyse de Fiabilité":
+    st.title("🛡️ Analyseur de Fiabilité Scientifique")
+    st.write("Vérifiez la crédibilité d'un document, d'un article ou d'une vidéo technique pour vos rapports.")
 
-# --- 1. CONFIGURATION SYSTÈME (CORRIGÉ) ---
-st.set_page_config(page_title="Ingénieur OS", page_icon="🏗️", layout="wide")
+    # Choix du support de la source
+    support = st.radio("Support à analyser :", ["Lien (Web / YouTube)", "Document PDF", "Extrait de texte"])
+    sujet_travail = st.text_input("Sujet de votre travail de recherche :", placeholder="Ex: Étude de la portance d'une aile d'avion")
 
-try:
-    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-except:
-    st.error("⚠️ GROQ_API_KEY manquante dans les Secrets Streamlit.")
+    source_data = "" # Initialisation du contenu à envoyer à l'IA
 
-# --- 2. STYLE CSS (DESIGN AVANCÉ) ---
-st.markdown("""
-    <style>
-    .stApp { background-color: #0e1117; color: white; }
-    .hero-text { text-align: center; padding: 50px 0; }
-    .feature-card { 
-        background-color: #1c1f26; padding: 25px; border-radius: 15px; 
-        border: 1px solid #2e7bc4; text-align: center; height: 100%;
-    }
-    .stat-box { font-size: 25px; font-weight: bold; color: #2e7bc4; }
-    .stButton>button { border-radius: 8px; font-weight: bold; background-color: #2e7bc4; color: white; height: 3em; }
-    </style>
-    """, unsafe_allow_html=True)
-
-# --- 3. LOGIQUE D'AFFICHAGE ---
-if "user_profile" not in st.session_state:
-    st.session_state.user_profile = None
-
-if "show_register" not in st.session_state:
-    st.session_state.show_register = False
-
-# --- PAGE D'ACCUEIL (AVANT CONNEXION) ---
-if st.session_state.user_profile is None and not st.session_state.show_register:
-    # HERO SECTION
-    st.markdown('<div class="hero-text"><h1>🏗️ INGÉNIEUR OS</h1><h3>La plateforme de certification et d\'aide à la réussite pour les futurs Ingénieurs Civils.</h3></div>', unsafe_allow_html=True)
+    # --- CAS 1 : LIEN WEB OU YOUTUBE ---
+    if support == "Lien (Web / YouTube)":
+        url = st.text_input("Collez l'URL de la source :", placeholder="https://youtube.com... ou https://article.com...")
+        precisions = st.text_area("Optionnel : Ajoutez une transcription ou des détails sur l'auteur :", height=100)
+        source_data = f"URL de la source : {url}\nPrécisions supplémentaires : {precisions}"
     
-    # STATISTIQUES
-    col1, col2, col3 = st.columns(3)
-    col1.markdown('<div style="text-align:center"><p class="stat-box">500+</p><p>Annales d\'examens</p></div>', unsafe_allow_html=True)
-    col2.markdown('<div style="text-align:center"><p class="stat-box">IA Vision</p><p>Analyse de schémas</p></div>', unsafe_allow_html=True)
-    col3.markdown('<div style="text-align:center"><p class="stat-box">Certifié</p><p>Par des experts métiers</p></div>', unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
-    # FONCTIONNALITÉS
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        st.markdown('<div class="feature-card">🧪 <b>Moteur de Recherche</b><p>Trouvez les sources académiques les plus fiables (UCL, ULB, Liège...).</p></div>', unsafe_allow_html=True)
-    with c2:
-        st.markdown('<div class="feature-card">🤖 <b>Assistant Multimodal</b><p>L\'IA lit vos PDF et vos photos d\'exercices de physique/maths.</p></div>', unsafe_allow_html=True)
-    with c3:
-        st.markdown('<div class="feature-card">📝 <b>Copilote LaTeX</b><p>Générez vos rapports de labo et mémoires en mode conversationnel.</p></div>', unsafe_allow_html=True)
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    # BOUTON D'ACCÈS
-    if st.button("🚀 ACCÉDER À LA PLATEFORME (GRATUIT)"):
-        st.session_state.show_register = True
-        st.rerun()
+    # --- CAS 2 : DOCUMENT PDF ---
+    elif support == "Document PDF":
+        uploaded_pdf = st.file_uploader("Upload le PDF à auditer (Syllabus, Article, Note) :", type=["pdf"])
+        if uploaded_pdf:
+            with st.spinner("Lecture du document..."):
+                try:
+                    reader = PyPDF2.PdfReader(uploaded_pdf)
+                    # Analyse des 3 premières pages (souvent suffisant pour l'autorité et l'intro)
+                    pdf_text = ""
+                    for i in range(min(3, len(reader.pages))):
+                        pdf_text += reader.pages[i].extract_text()
+                    source_data = f"Contenu extrait du PDF : {pdf_text[:8000]}" # Limite pour l'IA
+                except Exception as e:
+                    st.error(f"Erreur lors de la lecture du PDF : {e}")
 
-# --- FORMULAIRE D'INSCRIPTION (DYNAMIQUE) ---
-elif st.session_state.user_profile is None and st.session_state.show_register:
-    st.title("🔑 Création de votre profil")
-    role = st.radio("Choisissez votre profil :", ["Élève (Secondaire)", "Étudiant (Université)", "Professionnel / Expert"], horizontal=True)
-    
-    nom = st.text_input("Nom d'utilisateur / Pseudo")
-    email = st.text_input("Adresse Email")
-    detail_final = ""
-    entite_nom = ""
+    # --- CAS 3 : EXTRAIT DE TEXTE ---
+    elif support == "Extrait de texte":
+        source_data = st.text_area("Collez un extrait significatif de la source :", height=200, placeholder="Copiez-collez ici le texte à vérifier...")
 
-    if role == "Élève (Secondaire)":
-        entite_nom = st.text_input("Nom de votre École")
-        option = st.selectbox("Option :", ["Math Fortes", "Sciences", "Autre"])
-        detail_final = st.text_input("Précisez l'option :") if option == "Autre" else option
-
-    elif role == "Étudiant (Université)":
-        entite_nom = st.text_input("Université (ex: UCL, ULB...)")
-        fac = st.selectbox("Faculté :", ["Polytech", "Sciences", "Autre"])
-        detail_final = st.text_input("Précisez la Faculté :") if fac == "Autre" else fac
-
-    elif role == "Professionnel / Expert":
-        entite_nom = st.text_input("Entreprise / Institution")
-        expertise = st.selectbox("Expertise :", ["Génie Civil", "Électromécanique", "Autre"])
-        detail_final = st.text_input("Précisez votre spécialité :") if expertise == "Autre" else expertise
-        linkedin = st.text_input("Lien LinkedIn (Vérification IA)")
-
-    if st.button("Valider et Entrer"):
-        if nom and email and entite_nom and detail_final:
-            st.session_state.user_profile = {"nom": nom, "role": role, "entite": entite_nom, "detail": detail_final}
-            st.rerun()
+    # --- BOUTON D'ACTION ---
+    if st.button("Lancer l'audit de fiabilité"):
+        if sujet_travail and source_data:
+            with st.spinner("Expertise scientifique en cours..."):
+                try:
+                    # L'IA agit comme un examinateur d'intégrité académique
+                    res = client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[
+                            {"role": "system", "content": """Tu es un expert en intégrité académique pour ingénieurs. 
+                            Ton rôle est d'analyser la source fournie et de rendre un verdict précis sur sa fiabilité.
+                            Analyse selon ces axes :
+                            1. 🔍 AUTORITÉ : Qui est l'auteur ou l'institution ? (Reconnu, Universitaire, ou Vulgarisation ?)
+                            2. ⚙️ RIGUEUR : Y a-t-il une méthodologie, des calculs, des sources citées ?
+                            3. ⚠️ BIAIS : La source est-elle objective ou commerciale/opinion ?
+                            4. ⚖️ VERDICT FINAL : Note sur 10 et conseil ('Citer sans crainte', 'Citer avec prudence' ou 'À ÉVITER').
+                            Sois critique et rigoureux."""},
+                            {"role": "user", "content": f"Sujet de l'étudiant: {sujet_travail}\nDonnées de la source: {source_data}"}
+                        ]
+                    )
+                    
+                    st.markdown("---")
+                    st.markdown("### 📊 Rapport d'Audit de Fiabilité")
+                    # Affichage de la réponse (avec index 0 pour éviter l'erreur de liste)
+                    st.markdown(res.choices[0].message.content)
+                    
+                    st.info("💡 **Note :** Un score élevé (8+) signifie que vous pouvez utiliser ce document comme référence solide dans votre bibliographie.")
+                except Exception as e:
+                    st.error(f"Erreur technique lors de l'analyse : {e}")
         else:
-            st.error("Veuillez remplir tous les champs.")
-            
-    if st.button("⬅️ Retour à l'accueil"):
-        st.session_state.show_register = False
-        st.rerun()
-
-# --- INTERFACE PRINCIPALE (APRÈS CONNEXION) ---
-else:
-    st.sidebar.title(f"🚀 {st.session_state.user_profile['nom']}")
-    st.sidebar.write(f"📍 {st.session_state.user_profile['entite']}")
-    
-    menu = ["🔍 Recherche", "🤖 Assistant IA", "📝 Rapports", "🛡️ Audit", "💎 Premium"]
-    choice = st.sidebar.radio("Navigation", menu)
-
-    # ... (Garder ici ton code précédent pour chaque onglet)
-    if choice == "💎 Premium":
-        st.title("💎 Mode Premium")
-        st.link_button("S'abonner (9.99€/mois)", "https://votre-boutique.lemonsqueezy.com")
+            st.warning("Veuillez remplir le sujet et fournir une source (Lien, PDF ou Texte).")
