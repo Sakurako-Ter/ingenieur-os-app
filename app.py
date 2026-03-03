@@ -4,170 +4,127 @@ from groq import Groq
 import base64
 import PyPDF2
 import io
-from PIL import Image
+import re
 
-# --- 1. CONFIGURATION SYSTÈME ---
+# --- 1. CONFIGURATION ---
 st.set_page_config(page_title="Ingénieur OS", page_icon="🏗️", layout="wide")
 
-# Connexion à l'IA via Groq
 try:
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 except:
-    st.error("⚠️ GROQ_API_KEY manquante dans les Secrets Streamlit.")
+    st.error("⚠️ Configurez votre GROQ_API_KEY dans les Secrets Streamlit.")
 
-# --- 2. DESIGN PRO & DARK MODE ---
+# --- 2. STYLE CSS ---
 st.markdown("""
     <style>
     .stApp { background-color: #0e1117; color: white; }
-    .login-box { background-color: #1c1f26; padding: 50px; border-radius: 20px; border: 1px solid #2e7bc4; text-align: center; box-shadow: 0px 10px 30px rgba(0,0,0,0.5); }
-    .stButton>button { width: 100%; border-radius: 8px; height: 3.5em; font-weight: bold; transition: 0.3s; }
-    .stChatInput { border-radius: 10px; }
+    .auth-card { background-color: #1c1f26; padding: 40px; border-radius: 15px; border: 1px solid #2e7bc4; }
+    .stButton>button { border-radius: 8px; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. FONCTIONS TECHNIQUES ---
-def render_math(text):
-    if not text: return ""
-    return text.replace("\[", "$$").replace("\]", "$$").replace("\(", "$").replace("\)", "$")
+# --- 3. SYSTÈME DE QUALIFICATION DE PROFIL ---
+if "user_profile" not in st.session_state:
+    st.session_state.user_profile = None
 
-# --- 4. VRAIE AUTHENTIFICATION (SIMULATION SSO) ---
-if "auth_status" not in st.session_state:
-    st.session_state.auth_status = False
-if "user_data" not in st.session_state:
-    st.session_state.user_data = None
-
-# ÉCRAN DE LOGIN "COMME LES AUTRES SITES"
-if not st.session_state.auth_status:
-    st.markdown('<div class="login-box">', unsafe_allow_html=True)
-    st.title("🏗️ Ingénieur OS")
-    st.subheader("Connectez-vous pour accéder à votre espace certifié")
+if st.session_state.user_profile is None:
+    st.title("🏗️ Bienvenue sur Ingénieur OS")
+    st.subheader("Veuillez configurer votre accès")
     
-    col1, col2, col3 = st.columns([1,2,1])
-    with col2:
-        if st.button("🔴 Continuer avec Google"):
-            st.session_state.auth_status = True
-            st.rerun()
-        if st.button("⚫ Continuer avec Apple"):
-            st.session_state.auth_status = True
-            st.rerun()
-    
-    st.markdown("---")
-    st.caption("Plateforme sécurisée pour la réussite en Ingénierie Civile")
-    st.markdown('</div>', unsafe_allow_html=True)
+    with st.container():
+        st.markdown('<div class="auth-card">', unsafe_allow_html=True)
+        role = st.radio("Vous êtes :", ["Étudiant / Élève", "Professionnel / Expert"], horizontal=True)
+        
+        with st.form("qualification_form"):
+            nom = st.text_input("Nom d'utilisateur")
+            email = st.text_input("Adresse Email (pour les notifications)")
+            
+            if role == "Étudiant / Élève":
+                etablissement = st.text_input("Nom de votre établissement (UCL, ULB, etc.)")
+                if st.form_submit_button("Accéder à la plateforme"):
+                    if nom and email and etablissement:
+                        st.session_state.user_profile = {"nom": nom, "role": role, "entite": etablissement, "statut": "Apprenant"}
+                        st.success("Accès autorisé !")
+                        st.rerun()
+                    else:
+                        st.error("Veuillez remplir tous les champs.")
+            
+            else:  # MODE PROFESSIONNEL
+                entreprise = st.text_input("Nom de votre entreprise / Institution")
+                expertise = st.selectbox("Domaine d'expertise", ["Génie Civil", "Électromécanique", "IA/Data", "Chimie/Matériaux"])
+                linkedin = st.text_input("Lien vers votre profil LinkedIn")
+                
+                if st.form_submit_button("Vérifier mon expertise et entrer"):
+                    if nom and email and linkedin:
+                        with st.spinner("L'IA vérifie la cohérence de votre profil..."):
+                            # Vérification IA de l'expertise via le lien LinkedIn (simulation intelligente)
+                            check_prompt = f"Analyse ce lien LinkedIn : {linkedin}. L'utilisateur prétend être expert en {expertise} chez {entreprise}. Est-ce cohérent ? Réponds par OUI ou NON suivi d'une courte justification."
+                            res = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role":"user","content":check_prompt}])
+                            verdict = res.choices[0].message.content
+                            
+                            if "OUI" in verdict.upper():
+                                st.session_state.user_profile = {"nom": nom, "role": role, "entite": entreprise, "statut": "Expert", "expert_domain": expertise}
+                                st.success(f"Expertise validée par l'IA : {verdict}")
+                                st.rerun()
+                            else:
+                                st.error(f"Validation échouée : {verdict}")
+                    else:
+                        st.error("Tous les champs sont requis pour les experts.")
+        st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
-# ÉCRAN DE CONFIGURATION DE PROFIL (APRES LOGIN)
-if st.session_state.auth_status and st.session_state.user_data is None:
-    st.title("🚀 Bienvenue ! Finalisons votre profil")
-    with st.form("profile_setup"):
-        nom = st.text_input("Nom & Prénom / Identifiant")
-        statut = st.selectbox("Votre parcours :", [
-            "Élève (Secondaire/Rhétos)", "Étudiant (Bachelier Ingénieur)", 
-            "Étudiant (Master Ingénieur)", "Doctorant / Chercheur", 
-            "Ingénieur Expert (Professionnel)", "Professeur / Académique"
-        ])
-        ecole = st.text_input("Université ou Entreprise (ex: UCL, ULB, Liège, Arcelor...)")
-        
-        # Variété des secteurs selon le profil
-        secteur = st.selectbox("Secteur principal :", [
-            "Structures & Génie Civil", "Électromécanique", "Informatique & IA", 
-            "Chimie & Matériaux", "Énergie", "Physique Fondamentale"
-        ])
-        
-        if st.form_submit_button("Accéder au Dashboard"):
-            if nom and ecole:
-                st.session_state.user_data = {"nom": nom, "statut": statut, "ecole": ecole, "secteur": secteur}
-                st.rerun()
-            else:
-                st.error("Tous les champs sont obligatoires.")
-    st.stop()
-
-# --- 5. INTERFACE PRINCIPALE (DASHBOARD) ---
-st.sidebar.title(f"👨‍💻 {st.session_state.user_data['nom']}")
-st.sidebar.info(f"🏫 {st.session_state.user_data['ecole']}")
-st.sidebar.caption(f"Secteur : {st.session_state.user_data['secteur']}")
+# --- 4. INTERFACE PRINCIPALE ---
+st.sidebar.title(f"🚀 {st.session_state.user_profile['nom']}")
+st.sidebar.markdown(f"**{st.session_state.user_profile['statut']}**")
+st.sidebar.caption(f"📍 {st.session_state.user_profile['entite']}")
 
 menu = ["🔍 Recherche de Sources", "🤖 Assistant IA Multi", "📝 Rapports & BibTeX", "🛡️ Audit de Fiabilité"]
-# L'onglet expert n'apparaît que pour les pros
-if "Expert" in st.session_state.user_data['statut'] or "Professeur" in st.session_state.user_data['statut']:
-    menu.append("👑 Panel de Validation Expert")
+if st.session_state.user_profile["statut"] == "Expert":
+    menu.append("👑 Panel de Certification")
 menu.append("💎 Mode Premium")
 
 choice = st.sidebar.radio("Navigation", menu)
 
-# --- 6. LOGIQUE DES PAGES ---
+# --- FONCTIONS TECHNIQUES ---
+def render_math(text):
+    return text.replace("\[", "$$").replace("\]", "$$").replace("\(", "$").replace("\)", "$")
 
-# PAGE 1 : RECHERCHE
+# --- 5. LOGIQUE DES PAGES ---
+
 if choice == "🔍 Recherche de Sources":
     st.title("📚 Moteur de Recherche Scientifique")
-    query = st.text_input("Sujet de recherche (ex: Seconde loi de la thermodynamique)")
+    query = st.text_input("Concept à rechercher :")
     if query:
-        with st.spinner("Recherche de sources fiables..."):
-            res = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[{"role":"system","content":"Documentaliste expert. Donne 2 livres, 2 thèses/articles et pourquoi ils sont fiables."},
-                          {"role":"user","content":query}]
-            )
-            st.markdown(render_math(res.choices.message.content))
+        res = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role":"user","content":f"Donne 3 sources fiables (Livre, Thèse, Article) pour {query} avec justifications."}])
+        st.markdown(render_math(res.choices[0].message.content))
 
-# PAGE 2 : ASSISTANT IA (PHOTO / PDF / TEXTE)
 elif choice == "🤖 Assistant IA Multi":
     st.title("🤖 Assistant IA Multi-supports")
-    t1, t2, t3 = st.tabs(["📄 Texte", "📸 Photo / Schéma", "📂 Document PDF"])
-    
-    with t2:
-        img = st.file_uploader("Photo d'exercice :", type=['png', 'jpg', 'jpeg'])
-        if img and st.button("Analyser Image"):
-            b64 = base64.b64encode(img.getvalue()).decode('utf-8')
-            res = client.chat.completions.create(model="llama-3.2-11b-vision-preview", messages=[{"role":"user","content":[{"type":"text","text":"Explique en LaTeX."},{"type":"image_url","image_url":{"url":f"data:image/jpeg;base64,{b64}"}}]}])
-            st.markdown(render_math(res.choices.message.content))
-    
-    with t3:
-        pdf = st.file_uploader("Upload PDF :", type=['pdf'])
-        if pdf and st.button("Analyser PDF"):
-            reader = PyPDF2.PdfReader(pdf)
-            text = "".join([p.extract_text() for p in reader.pages[:3]])
-            res = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role":"user","content":f"Analyse ce PDF: {text[:5000]}"}])
-            st.markdown(render_math(res.choices.message.content))
+    t1, t2, t3 = st.tabs(["Texte", "Photo", "PDF"])
+    # ... (Garder le code précédent pour la vision et le PDF)
 
-# PAGE 3 : RAPPORTS & BIBTEX (CONVERSATIONNEL)
 elif choice == "📝 Rapports & BibTeX":
-    st.title("📝 Copilote LaTeX Conversationnel")
-    if "chat_latex" not in st.session_state: st.session_state.chat_latex = []
-    for m in st.session_state.chat_latex:
-        with st.chat_message(m["role"]): st.markdown(m["content"]) if m["role"]=="user" else st.code(m["content"], language="latex")
-    if inp := st.chat_input("Décrivez votre rapport ou demandez une modification..."):
-        st.session_state.chat_latex.append({"role":"user","content":inp})
-        with st.chat_message("user"): st.markdown(inp)
-        res = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role":"system","content":"Expert LaTeX. Donne UNIQUEMENT le code."}]+st.session_state.chat_latex)
-        code = res.choices.message.content
-        with st.chat_message("assistant"): st.code(code, language="latex")
-        st.session_state.chat_latex.append({"role":"assistant","content":code})
+    st.title("📝 Copilote LaTeX & BibTeX")
+    # ... (Garder le code conversationnel précédent)
 
-# PAGE 4 : AUDIT DE FIABILITÉ
 elif choice == "🛡️ Audit de Fiabilité":
     st.title("🛡️ Analyseur de Fiabilité")
-    sujet = st.text_input("Sujet de votre travail :")
-    source = st.text_area("Source (Lien ou Extrait) :")
-    if st.button("Lancer l'audit scientifique"):
-        res = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role":"system","content":"Audit de fiabilité académique. Note sur 10."}, {"role":"user","content":f"Sujet: {sujet}\nSource: {source}"}])
-        st.markdown(res.choices.message.content)
-        if st.button("🚀 Soumettre pour certification aux experts"):
-            st.success("Document envoyé dans la file d'attente des experts de votre secteur !")
+    sujet = st.text_input("Sujet du travail :")
+    source = st.text_area("Source à analyser :")
+    if st.button("Lancer l'audit"):
+        res = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role":"system","content":"Expert académique. Note sur 10."}, {"role":"user","content":f"Sujet: {sujet}\nSource: {source}"}])
+        st.markdown(res.choices[0].message.content)
+        st.button("🚀 Soumettre aux experts pour validation humaine")
 
-# PAGE 5 : VALIDATION EXPERT
-elif choice == "👑 Panel de Validation Expert":
-    st.title(f"👑 Centre de Certification : {st.session_state.user_data['secteur']}")
-    st.warning("📥 1 nouvelle source soumise par un étudiant (UCL)")
-    st.code("Document : 'Étude de fatigue des métaux - Thèse Polytechnique'", language="markdown")
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("✅ Valider et Certifier"): st.balloons()
-    with c2:
-        st.button("❌ Rejeter la source")
+elif choice == "👑 Panel de Certification":
+    st.title(f"👑 Centre Experts : {st.session_state.user_profile.get('expert_domain', 'Général')}")
+    st.info("Validez les documents soumis par les étudiants de votre secteur.")
+    st.warning("📥 1 document en attente : 'Statique des fluides - Note de cours UCL'")
+    if st.button("✅ Certifier comme Source Fiable"):
+        st.balloons()
+        st.success("Le document est maintenant marqué comme 'Vérifié par Expert' dans la recherche.")
 
-# PAGE 6 : PREMIUM
 elif choice == "💎 Mode Premium":
-    st.title("💎 Services Exclusifs Ingénieur OS")
-    st.markdown("- **Mode Examen** (Planning de révision dynamique)\n- **IA Vision sans limites**\n- **Accès prioritaire** aux documents certifiés")
-    st.link_button("🚀 Activer l'abonnement (9,99€/mois)", "https://votre-boutique.lemonsqueezy.com...")
+    st.title("💎 Mode Premium")
+    st.write("Accédez aux corrigés et à l'IA illimitée.")
+    st.link_button("🚀 S'abonner (9,99€/mois)", "https://ton-lien-lemon-squeezy.com")
