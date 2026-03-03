@@ -6,8 +6,8 @@ import PyPDF2
 import io
 from PIL import Image
 
-# --- 1. CONFIGURATION SYSTÈME ---
-st.set_config(page_title="Ingénieur OS", page_icon="🏗️", layout="wide")
+# --- 1. CONFIGURATION SYSTÈME (CORRIGÉ) ---
+st.set_page_config(page_title="Ingénieur OS", page_icon="🏗️", layout="wide")
 
 try:
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
