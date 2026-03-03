@@ -75,61 +75,61 @@ if choice == "🔍 Recherche Documents":
 elif choice == "🤖 Assistant IA Multi":
     st.title("🤖 Assistant IA Multi-supports")
     
+    # Bouton unique pour Photo et PDF
     uploaded_file = st.file_uploader(
         "Importer un exercice (Photo, Schéma ou PDF)", 
         type=['png', 'jpg', 'jpeg', 'pdf'],
-        key="uploader_vfinal"
+        key="uploader_vfinal_secure"
     )
 
     if uploaded_file:
         if uploaded_file.type == "application/pdf":
-            st.info(f"📄 PDF détecté : {uploaded_file.name}")
+            st.info(f"📄 PDF prêt : {uploaded_file.name}")
         else:
-            st.image(uploaded_file, caption="Image détectée", width=300)
+            st.image(uploaded_file, caption="Image prête", width=300)
 
+    # Zone de saisie style Math-GPT
     prompt = st.chat_input("Posez votre question ici...")
 
     if prompt:
         with st.spinner("Analyse en cours..."):
             try:
-                # SCÉNARIO 1 : IMAGE (Modèle Pixtral - Stable sur Groq)
+                # 1. CAS IMAGE
                 if uploaded_file and uploaded_file.type != "application/pdf":
                     b64 = base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
+                    # On tente le 90b qui est le plus stable en accès
                     res = client.chat.completions.create(
-                        model="pixtral-12b-2409", # <-- CE MODÈLE EST ACTUELLEMENT DISPONIBLE
+                        model="llama-3.2-90b-vision-preview", 
                         messages=[{"role":"user","content":[
-                            {"type":"text","text": f"Question: {prompt}\nRéponds en utilisant LaTeX."},
+                            {"type":"text","text": f"{prompt}\nRéponds en LaTeX."},
                             {"type":"image_url","image_url":{"url":f"data:image/jpeg;base64,{b64}"}}
                         ]}]
                     )
                 
-                # SCÉNARIO 2 : PDF (Llama 3.3 stable)
+                # 2. CAS PDF
                 elif uploaded_file and uploaded_file.type == "application/pdf":
                     reader = PyPDF2.PdfReader(uploaded_file)
                     content = "".join([p.extract_text() for p in reader.pages[:3]])
                     res = client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
-                        messages=[{"role":"user","content":f"Analyse ce PDF. Texte: {content[:4000]}\n\nQuestion: {prompt}. Réponds en LaTeX."}]
+                        messages=[{"role":"user","content":f"PDF: {content[:4000]}\nQuestion: {prompt}. Réponds en LaTeX."}]
                     )
                 
-                # SCÉNARIO 3 : TEXTE SEUL
+                # 3. CAS TEXTE SEUL
                 else:
                     res = client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
-                        messages=[{"role":"system","content":"Tu es un expert ingénieur. Réponds en LaTeX."},
+                        messages=[{"role":"system","content":"Expert Ingénieur. Réponds en LaTeX."},
                                   {"role":"user","content":prompt}]
                     )
 
-                # AFFICHAGE DU RÉSULTAT
+                # AFFICHAGE (Syntaxe Groq officielle)
                 st.markdown("---")
-                if res.choices:
-                    st.markdown(render_math(res.choices[0].message.content))
+                st.markdown(render_math(res.choices[0].message.content))
                 
             except Exception as e:
-                st.error(f"Erreur lors de l'analyse : {e}")
-                st.info("💡 Note : Vérifiez votre accès aux modèles sur https://console.groq.com")
-
-
+                st.error(f"Erreur d'analyse : {e}")
+                st.info("Vérifiez vos modèles disponibles sur la [Console Groq](https://console.groq.com)")
 
 
 # --- PAGE 3 : RAPPORTS LATEX (CONVERSATIONNEL) ---
