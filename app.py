@@ -32,7 +32,7 @@ def render_math(text):
 # --- 4. BARRE LATÉRALE (MENU) ---
 st.sidebar.title("🚀 Ingénieur OS")
 st.sidebar.markdown("---")
-menu = ["🔍 Recherche", "🤖 Assistant IA Multi", "📝 Rapports LaTeX", "🛡️ Analyse de Fiabilité", "💳 Version Premium"]
+menu = ["🔍 Recherche Documents", "🤖 Assistant IA Multi", "📝 Rapports LaTeX", "🛡️ Analyse de Fiabilité", "💳 Version Premium"]
 choice = st.sidebar.radio("Navigation", menu)
 st.sidebar.markdown("---")
 st.sidebar.caption("Plateforme révolutionnaire pour le Bac 1 Ingénieur Civil.")
@@ -40,7 +40,7 @@ st.sidebar.caption("Plateforme révolutionnaire pour le Bac 1 Ingénieur Civil."
 # --- 5. LOGIQUE DES PAGES ---
 
 # --- PAGE 1 : RECHERCHE (ARANA) ---
-if choice == "🔍 Recherche Arana":
+if choice == "🔍 Recherche Documents":
     st.title("📚 Moteur de Recherche de Sources Certifiées")
     st.write("Trouvez des références académiques (articles, thèses, ouvrages) pour vos rapports.")
     
